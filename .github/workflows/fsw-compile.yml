@@ -1,0 +1,50 @@
+name: FSW Compile Check
+
+on:
+  pull_request:
+    paths:
+      - "fsw/**"
+      - ".github/workflows/fsw-compile.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "fsw/**"
+      - ".github/workflows/fsw-compile.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fsw-compile:
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        shell: bash
+        working-directory: fsw/lioness-sw
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build requirements
+        run: |
+          python -m venv fprime-venv
+          source fprime-venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Configure
+        run: |
+          source fprime-venv/bin/activate
+          cmake --preset fprime
+
+      - name: Build
+        run: |
+          source fprime-venv/bin/activate
+          cmake --build build-fprime-automatic-native --parallel
