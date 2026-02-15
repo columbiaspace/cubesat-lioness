@@ -1,3 +1,0 @@
-module Fw {
-    type StatementArgBuffer
-}
