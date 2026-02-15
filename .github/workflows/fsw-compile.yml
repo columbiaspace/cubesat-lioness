@@ -26,6 +26,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Initialize F Prime submodule
+        run: |
+          git submodule update --init --depth 1 fsw/lioness-sw/lib/fprime
+          git -C fsw/lioness-sw/lib/fprime submodule update --init --recursive
+        working-directory: .
 
       - name: Set up Python
         uses: actions/setup-python@v5

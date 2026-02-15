@@ -1,0 +1,3 @@
+[submodule "fsw/lioness-sw/lib/fprime"]
+	path = fsw/lioness-sw/lib/fprime
+	url = https://github.com/nasa/fprime.git
