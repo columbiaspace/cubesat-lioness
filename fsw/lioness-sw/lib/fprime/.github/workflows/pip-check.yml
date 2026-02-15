@@ -1,0 +1,34 @@
+# This job is to check that the requirements.txt file isn't giving
+# any troubles to pip for any of the supported versions of Python
+
+name: Python Dependency Check
+
+on:
+  push:
+    paths:
+      - "requirements.txt"
+  pull_request:
+    paths:
+      - "requirements.txt"
+# Cancel in-progress runs if a newer run is started on a given PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ !contains(github.ref, 'devel') && !contains(github.ref, 'release/')}}
+
+jobs:
+  pip-install:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        # Purposefully test on both ARM and Intel macOS (macos-latest is ARM)
+        runner: [macos-15-intel, macos-latest, ubuntu-22.04, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt

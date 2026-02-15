@@ -1,0 +1,22 @@
+{
+    "ignorePatterns": [
+      {
+        "pattern": "^(https?://)?localhost"
+      },
+      {
+        "pattern": "https?://"
+      },
+      {
+        "pattern": "./tutorials-"
+      },
+      {
+        "pattern": "^\\.\\./tree/HEAD/"
+      },
+      {
+        "pattern": ".*\\.[chf]pp"
+      },
+      {
+        "pattern": "../../../.."
+      }
+    ]
+}

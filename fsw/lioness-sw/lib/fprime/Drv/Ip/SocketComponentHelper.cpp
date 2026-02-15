@@ -1,0 +1,365 @@
+// ======================================================================
+// \title  SocketComponentHelper.cpp
+// \author mstarch, crsmith
+// \brief  cpp file for SocketComponentHelper implementation class
+//
+// \copyright
+// Copyright 2009-2020, by the California Institute of Technology.
+// ALL RIGHTS RESERVED.  United States Government Sponsorship
+// acknowledged.
+//
+// ======================================================================
+
+#include <Drv/Ip/SocketComponentHelper.hpp>
+#include <Fw/Logger/Logger.hpp>
+#include <Fw/Types/Assert.hpp>
+#include <cerrno>
+
+namespace Drv {
+
+SocketComponentHelper::SocketComponentHelper() {}
+
+SocketComponentHelper::~SocketComponentHelper() {}
+
+void SocketComponentHelper::start(const Fw::ConstStringBase& name,
+                                  const FwTaskPriorityType priority,
+                                  const Os::Task::ParamType stack,
+                                  const Os::Task::ParamType cpuAffinity,
+                                  const FwTaskPriorityType priorityReconnect,
+                                  const Os::Task::ParamType stackReconnect,
+                                  const Os::Task::ParamType cpuAffinityReconnect) {
+    // Reconnect Thread
+    FW_ASSERT(m_reconnectTask.getState() ==
+              Os::Task::State::NOT_STARTED);  // It is a coding error to start this task multiple times
+    this->m_reconnectStop = false;
+    Fw::String reconnectName;
+    reconnectName.format("%s_reconnect", name.toChar());
+    Os::Task::Arguments reconnectArguments(reconnectName, SocketComponentHelper::reconnectTask, this, priorityReconnect,
+                                           stackReconnect, cpuAffinityReconnect);
+    Os::Task::Status reconnectStat = m_reconnectTask.start(reconnectArguments);
+    FW_ASSERT(Os::Task::OP_OK == reconnectStat, static_cast<FwAssertArgType>(reconnectStat));
+
+    // Read Thread
+    FW_ASSERT(m_task.getState() ==
+              Os::Task::State::NOT_STARTED);  // It is a coding error to start this task multiple times
+    this->m_stop = false;
+    // Note: the first step is for the IP socket to open the port
+    Os::Task::Arguments arguments(name, SocketComponentHelper::readTask, this, priority, stack, cpuAffinity);
+    Os::Task::Status stat = m_task.start(arguments);
+    FW_ASSERT(Os::Task::OP_OK == stat, static_cast<FwAssertArgType>(stat));
+}
+
+SocketIpStatus SocketComponentHelper::open() {
+    SocketIpStatus status = SOCK_ANOTHER_THREAD_OPENING;
+    OpenState local_open = OpenState::OPEN;
+    // Scope to guard lock
+    {
+        Os::ScopeLock scopeLock(m_lock);
+        if (this->m_open == OpenState::NOT_OPEN) {
+            this->m_open = OpenState::OPENING;
+            local_open = this->m_open;
+        } else {
+            local_open = OpenState::SKIP;
+        }
+    }
+    if (local_open == OpenState::OPENING) {
+        FW_ASSERT(this->m_descriptor.fd == -1);  // Ensure we are not opening an opened socket
+        status = this->getSocketHandler().open(this->m_descriptor);
+        // Lock scope
+        {
+            Os::ScopeLock scopeLock(m_lock);
+            if (Drv::SOCK_SUCCESS == status) {
+                this->m_open = OpenState::OPEN;
+            } else {
+                this->m_open = OpenState::NOT_OPEN;
+                this->m_descriptor.fd = -1;
+            }
+        }
+        // Notify connection on success outside locked scope
+        if (Drv::SOCK_SUCCESS == status) {
+            this->connected();
+        }
+    }
+
+    return status;
+}
+
+bool SocketComponentHelper::isOpened() {
+    Os::ScopeLock scopedLock(this->m_lock);
+    bool is_open = this->m_open == OpenState::OPEN;
+    return is_open;
+}
+
+void SocketComponentHelper::setAutomaticOpen(bool auto_open) {
+    Os::ScopeLock scopedLock(this->m_lock);
+    this->m_reopen = auto_open;
+}
+
+bool SocketComponentHelper::getAutomaticOpen() {
+    Os::ScopeLock scopedLock(this->m_lock);
+    return this->m_reopen;
+}
+
+SocketIpStatus SocketComponentHelper::reopen() {
+    SocketIpStatus status = SOCK_SUCCESS;
+    if (not this->isOpened()) {
+        // Check for auto-open before attempting to reopen
+        bool reopen = this->getAutomaticOpen();
+        if (not reopen) {
+            status = SOCK_AUTO_CONNECT_DISABLED;
+            // Open a network connection if it has not already been open
+        } else {
+            status = this->open();
+            if (status == SocketIpStatus::SOCK_ANOTHER_THREAD_OPENING) {
+                status = SocketIpStatus::SOCK_SUCCESS;
+            }
+        }
+    }
+    return status;
+}
+
+SocketIpStatus SocketComponentHelper::send(const U8* const data, const FwSizeType size) {
+    SocketIpStatus status = SOCK_SUCCESS;
+    this->m_lock.lock();
+    SocketDescriptor descriptor = this->m_descriptor;
+    this->m_lock.unlock();
+    // Prevent transmission before connection, or after a disconnect
+    if (descriptor.fd == -1) {
+        this->requestReconnect();
+        SocketIpStatus reconnectStat = this->waitForReconnect();
+        if (reconnectStat == SOCK_SUCCESS) {
+            // Refresh local copy after reopen
+            this->m_lock.lock();
+            descriptor = this->m_descriptor;
+            this->m_lock.unlock();
+        } else {
+            return reconnectStat;
+        }
+    }
+    status = this->getSocketHandler().send(descriptor, data, size);
+    if (status == SOCK_DISCONNECTED) {
+        this->close();
+    }
+    return status;
+}
+
+void SocketComponentHelper::shutdown() {
+    Os::ScopeLock scopedLock(this->m_lock);
+    this->getSocketHandler().shutdown(this->m_descriptor);
+}
+
+void SocketComponentHelper::close() {
+    Os::ScopeLock scopedLock(this->m_lock);
+    this->getSocketHandler().close(this->m_descriptor);
+    this->m_descriptor.fd = -1;
+    this->m_open = OpenState::NOT_OPEN;
+}
+
+/* Read Thread */
+
+Os::Task::Status SocketComponentHelper::join() {
+    Os::Task::Status stat = m_task.join();
+    Os::Task::Status reconnectStat = this->joinReconnect();
+    if (stat == Os::Task::Status::OP_OK) {
+        return reconnectStat;
+    }
+    return stat;
+}
+
+void SocketComponentHelper::stop() {
+    // Scope to protect lock
+    {
+        Os::ScopeLock scopeLock(m_lock);
+        this->m_stop = true;
+    }
+    this->stopReconnect();
+    this->shutdown();  // Break out of any receives and fully shutdown
+}
+
+bool SocketComponentHelper::running() {
+    Os::ScopeLock scopedLock(this->m_lock);
+    bool running = not this->m_stop;
+    return running;
+}
+
+SocketIpStatus SocketComponentHelper::recv(U8* data, FwSizeType& size) {
+    SocketIpStatus status = SOCK_SUCCESS;
+    // Check for previously disconnected socket
+    this->m_lock.lock();
+    SocketDescriptor descriptor = this->m_descriptor;
+    this->m_lock.unlock();
+    if (descriptor.fd == -1) {
+        return SOCK_DISCONNECTED;
+    }
+    status = this->getSocketHandler().recv(descriptor, data, size);
+    if (status == SOCK_DISCONNECTED) {
+        this->close();
+    }
+    return status;
+}
+
+void SocketComponentHelper::readLoop() {
+    SocketIpStatus status = SOCK_SUCCESS;
+    do {
+        // Prevent transmission before connection, or after a disconnect
+        if ((not this->isOpened()) and this->running()) {
+            this->requestReconnect();
+            status = this->waitForReconnect();
+            // When reopen is disabled, just break as this is a exit condition for the loop
+            if (status == SOCK_AUTO_CONNECT_DISABLED) {
+                break;
+            }
+        }
+        // If the network connection is open, read from it
+        if (this->isOpened() and this->running()) {
+            Fw::Buffer buffer = this->getBuffer();
+            U8* data = buffer.getData();
+            FW_ASSERT(data);
+            FwSizeType size = buffer.getSize();
+            // recv blocks, so it may have been a while since its done an isOpened check
+            status = this->recv(data, size);
+            if ((status != SOCK_SUCCESS) && (status != SOCK_INTERRUPTED_TRY_AGAIN) &&
+                (status != SOCK_NO_DATA_AVAILABLE)) {
+                Fw::Logger::log("[WARNING] %s failed to recv from port with status %d and errno %d\n",
+                                this->m_task.getName().toChar(), status, errno);
+                this->close();
+                buffer.setSize(0);
+            } else {
+                // Send out received data
+                buffer.setSize(size);
+            }
+            this->sendBuffer(buffer, status);
+        }
+    }
+    // This will loop until stopped. If auto-open is disabled, this will break when reopen returns disabled status
+    while (this->running());
+    // Close the socket
+    this->close();  // Close the port entirely
+}
+
+void SocketComponentHelper::readTask(void* pointer) {
+    FW_ASSERT(pointer);
+    SocketComponentHelper* self = reinterpret_cast<SocketComponentHelper*>(pointer);
+    self->readLoop();
+}
+
+/* Reconnect Thread */
+
+Os::Task::Status SocketComponentHelper::joinReconnect() {
+    return m_reconnectTask.join();
+}
+
+void SocketComponentHelper::stopReconnect() {
+    Os::ScopeLock scopeLock(this->m_reconnectLock);
+    this->m_reconnectState = ReconnectState::NOT_RECONNECTING;
+    this->m_reconnectStop = true;
+}
+
+bool SocketComponentHelper::runningReconnect() {
+    Os::ScopeLock scopedLock(this->m_reconnectLock);
+    bool running = not this->m_reconnectStop;
+    return running;
+}
+
+void SocketComponentHelper::reconnectLoop() {
+    SocketIpStatus status = SOCK_SUCCESS;
+    while (this->runningReconnect()) {
+        // Check if we need to reconnect
+        bool reconnect = false;
+        {
+            Os::ScopeLock scopedLock(this->m_reconnectLock);
+            if (this->m_reconnectState == ReconnectState::REQUEST_RECONNECT) {
+                this->m_reconnectState = ReconnectState::RECONNECT_IN_PROGRESS;
+                reconnect = true;
+
+            }
+            // If we were already in or are now in RECONNECT_IN_PROGRESS we
+            // need to try to reconnect, again
+            else if (this->m_reconnectState == ReconnectState::RECONNECT_IN_PROGRESS) {
+                reconnect = true;
+            }
+        }
+
+        if (reconnect) {
+            status = this->reopen();
+
+            // Reopen Case 1: Auto Connect is disabled, so no longer
+            // try to reconnect
+            if (status == SOCK_AUTO_CONNECT_DISABLED) {
+                Os::ScopeLock scopedLock(this->m_reconnectLock);
+                this->m_reconnectState = ReconnectState::NOT_RECONNECTING;
+            }
+            // Reopen Case 2: Success, so no longer
+            // try to reconnect
+            else if (status == SOCK_SUCCESS) {
+                Os::ScopeLock scopedLock(this->m_reconnectLock);
+                this->m_reconnectState = ReconnectState::NOT_RECONNECTING;
+            }
+            // Reopen Case 3: Keep trying to reconnect - NO reconnect
+            // state change
+            else {
+                Fw::Logger::log("[WARNING] %s failed to open port with status %d and errno %d\n",
+                                this->m_task.getName().toChar(), status, errno);
+                (void)Os::Task::delay(SOCKET_RETRY_INTERVAL);
+            }
+        } else {
+            // After a brief delay, we will loop again
+            (void)Os::Task::delay(this->m_reconnectCheckInterval);
+        }
+    }
+}
+
+void SocketComponentHelper::reconnectTask(void* pointer) {
+    FW_ASSERT(pointer);
+    SocketComponentHelper* self = reinterpret_cast<SocketComponentHelper*>(pointer);
+    self->reconnectLoop();
+}
+
+void SocketComponentHelper::requestReconnect() {
+    Os::ScopeLock scopedLock(this->m_reconnectLock);
+    if (m_reconnectState == ReconnectState::NOT_RECONNECTING) {
+        m_reconnectState = ReconnectState::REQUEST_RECONNECT;
+    }
+    return;
+}
+
+SocketIpStatus SocketComponentHelper::waitForReconnect(Fw::TimeInterval timeout) {
+    // Do not attempt to reconnect if auto reconnect config flag is disabled
+    if (!this->getAutomaticOpen()) {
+        return SOCK_AUTO_CONNECT_DISABLED;
+    }
+
+    Fw::TimeInterval elapsed = Fw::TimeInterval(0, 0);
+
+    while (elapsed < timeout) {
+        // If the reconnect thread is NOT reconnecting, we are done waiting
+        // If we are no longer running the reconnect thread, we are done waiting
+        {
+            Os::ScopeLock scopedLock(this->m_reconnectLock);
+            if (this->m_reconnectState == ReconnectState::NOT_RECONNECTING) {
+                break;
+            }
+            if (this->m_reconnectStop) {
+                break;
+            }
+        }
+        // Wait a bit before checking again
+        (void)Os::Task::delay(this->m_reconnectWaitInterval);
+        elapsed.add(this->m_reconnectWaitInterval.getSeconds(), this->m_reconnectWaitInterval.getUSeconds());
+    }
+
+    // If we have completed our loop, check if we are connected or if
+    // auto connect was disabled during our wait
+    if (this->isOpened()) {
+        return SOCK_SUCCESS;
+    }
+
+    // Check one more time if auto reconnect config flag got disabled
+    if (!this->getAutomaticOpen()) {
+        return SOCK_AUTO_CONNECT_DISABLED;
+    }
+
+    return SOCK_DISCONNECTED;  // Indicates failure of this attempt, another reopen needed
+}
+
+}  // namespace Drv

@@ -1,0 +1,25 @@
+// ======================================================================
+// \title  FatalHandlerImpl.cpp
+// \author tcanham
+// \brief  cpp file for FatalHandler component implementation class
+//
+// \copyright
+// Copyright 2009-2015, by the California Institute of Technology.
+// ALL RIGHTS RESERVED.  United States Government Sponsorship
+// acknowledged.
+//
+// ======================================================================
+
+#include <taskLib.h>
+#include <Fw/FPrimeBasicTypes.hpp>
+#include <Fw/Logger/Logger.hpp>
+#include <Svc/FatalHandler/FatalHandlerComponentImpl.hpp>
+
+namespace Svc {
+
+void FatalHandlerComponentImpl::FatalReceive_handler(const FwIndexType portNum, FwEventIdType Id) {
+    Fw::Logger::log("FATAL %d handled.\n", Id, 0, 0, 0, 0, 0);
+    taskSuspend(0);
+}
+
+}  // end namespace Svc

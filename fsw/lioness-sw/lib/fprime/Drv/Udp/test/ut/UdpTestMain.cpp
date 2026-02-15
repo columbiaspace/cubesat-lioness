@@ -1,0 +1,45 @@
+// ----------------------------------------------------------------------
+// TestMain.cpp
+// ----------------------------------------------------------------------
+
+#include "UdpTester.hpp"
+
+TEST(Nominal, UdpBasicMessaging) {
+    Drv::UdpTester tester;
+    tester.test_basic_messaging();
+}
+
+TEST(Nominal, UdpBasicUnidirectionalMessaging) {
+    Drv::UdpTester tester;
+    tester.test_basic_unidirectional_messaging();
+}
+
+TEST(Nominal, UdpBasicReceiveThread) {
+    Drv::UdpTester tester;
+    tester.test_receive_thread();
+}
+
+TEST(Reconnect, UdpMultiMessaging) {
+    Drv::UdpTester tester;
+    tester.test_multiple_messaging();
+}
+
+TEST(Reconnect, UdpMultiUnidirectionalMessaging) {
+    Drv::UdpTester tester;
+    tester.test_multiple_unidirectional_messaging();
+}
+
+TEST(Reconnect, UdpReceiveThreadReconnect) {
+    Drv::UdpTester tester;
+    tester.test_advanced_reconnect();
+}
+
+TEST(Reconnect, UdpBufferDeallocation) {
+    Drv::UdpTester tester;
+    tester.test_buffer_deallocation();
+}
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}
