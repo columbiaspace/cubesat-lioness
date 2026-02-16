@@ -1,1 +1,0 @@
-static_assert(false, "This is a bad implementation");
