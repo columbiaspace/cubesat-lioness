@@ -18,6 +18,12 @@ module LionessSw {
         # @ Example port: receiving calls from the rate group
         # sync input port run: Svc.Sched
 
+        @ Port to receive UART Commands
+        output port commandOut: Drv.ByteStreamData
+
+        @ Port to receive data over UART
+        sync input port dataIn: Drv.ByteStreamData
+
         # @ Example parameter
         # param PARAMETER_NAME: U32
 
