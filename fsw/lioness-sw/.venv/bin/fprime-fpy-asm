@@ -1,0 +1,8 @@
+#!/Users/robertpendergrast/Devel/CubeSat/cubesat-lioness/fsw/lioness-sw/.venv/bin/python3.12
+# -*- coding: utf-8 -*-
+import re
+import sys
+from fprime_gds.common.fpy.main import assemble_main
+if __name__ == '__main__':
+    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
+    sys.exit(assemble_main())

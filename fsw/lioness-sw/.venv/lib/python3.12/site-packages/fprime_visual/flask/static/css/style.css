@@ -1,0 +1,85 @@
+* {
+    font-family: "Roboto Mono", monospace;
+}
+
+body {
+    margin: 0;
+    padding-top: 53px;
+    min-height: 100vh;
+    background: rgba(21, 26, 42, 1.00);
+    /* display: flex;
+    align-items: center;
+    justify-content: center; */
+}
+
+/* Header */
+header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: fixed;
+    top: 0;
+    left: 0;
+    padding: 10px 20px;
+    width: calc(100% - 40px);
+    background-color: white;
+    box-shadow: 0 1px 1px rgba( 100, 100, 100, .5);
+}
+
+header select {
+    width: 150px;
+}
+
+header .logo {
+    width: 40px;
+}
+
+header .header-button {
+    margin-right: 10px;
+    width: 30px;
+    cursor: pointer;
+    transition: .3s transform;
+}
+
+header .header-button:hover {
+    /* transform: rotate(45deg); */
+    transform: scale(1.15); /* Increase the size by 20% */
+}
+
+
+#canvas-container, #alert {
+    display: none;
+}
+
+#canvas-container {
+    width: 100%;
+}
+
+#canvas-container.show {
+    display: block;
+}
+
+#alert.show {
+    display: flex;
+}
+
+#alert {
+    width: 100%;
+    max-width: 500px;
+    flex-direction: column;
+    justify-content: center;
+    margin: 0 auto;
+    height: calc(100vh - 43px);
+}
+
+h2 {
+    color: rgba(255, 144, 1, 1.00);
+}
+
+p {
+    color: rgba(255, 144, 1, 1.00);
+}
+
+a {
+    color: rgba(255, 144, 1, 1.00);
+}

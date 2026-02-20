@@ -1,0 +1,6 @@
+#!/Users/robertpendergrast/Devel/CubeSat/cubesat-lioness/fsw/lioness-sw/.venv/bin/python3.12
+
+from Cheetah import DirectiveAnalyzer
+
+if __name__ == '__main__':
+    DirectiveAnalyzer.main()

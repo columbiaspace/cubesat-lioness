@@ -1,0 +1,3 @@
+#!/Users/robertpendergrast/Devel/CubeSat/cubesat-lioness/fsw/lioness-sw/.venv/bin/python3.12
+from Cheetah.CheetahWrapper import _cheetah
+_cheetah()

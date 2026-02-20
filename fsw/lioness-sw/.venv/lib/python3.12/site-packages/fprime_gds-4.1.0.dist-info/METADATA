@@ -1,0 +1,443 @@
+Metadata-Version: 2.4
+Name: fprime-gds
+Version: 4.1.0
+Summary: F Prime Flight Software Ground Data System layer
+Author-email: Michael Starch <Michael.D.Starch@jpl.nasa.gov>, Thomas Boyer-Chammard <Thomas.Boyer.Chammard@jpl.nasa.gov>
+License: 
+                                         Apache License
+                                   Version 2.0, January 2004
+                                http://www.apache.org/licenses/
+        
+           TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+        
+           1. Definitions.
+        
+              "License" shall mean the terms and conditions for use, reproduction,
+              and distribution as defined by Sections 1 through 9 of this document.
+        
+              "Licensor" shall mean the copyright owner or entity authorized by
+              the copyright owner that is granting the License.
+        
+              "Legal Entity" shall mean the union of the acting entity and all
+              other entities that control, are controlled by, or are under common
+              control with that entity. For the purposes of this definition,
+              "control" means (i) the power, direct or indirect, to cause the
+              direction or management of such entity, whether by contract or
+              otherwise, or (ii) ownership of fifty percent (50%) or more of the
+              outstanding shares, or (iii) beneficial ownership of such entity.
+        
+              "You" (or "Your") shall mean an individual or Legal Entity
+              exercising permissions granted by this License.
+        
+              "Source" form shall mean the preferred form for making modifications,
+              including but not limited to software source code, documentation
+              source, and configuration files.
+        
+              "Object" form shall mean any form resulting from mechanical
+              transformation or translation of a Source form, including but
+              not limited to compiled object code, generated documentation,
+              and conversions to other media types.
+        
+              "Work" shall mean the work of authorship, whether in Source or
+              Object form, made available under the License, as indicated by a
+              copyright notice that is included in or attached to the work
+              (an example is provided in the Appendix below).
+        
+              "Derivative Works" shall mean any work, whether in Source or Object
+              form, that is based on (or derived from) the Work and for which the
+              editorial revisions, annotations, elaborations, or other modifications
+              represent, as a whole, an original work of authorship. For the purposes
+              of this License, Derivative Works shall not include works that remain
+              separable from, or merely link (or bind by name) to the interfaces of,
+              the Work and Derivative Works thereof.
+        
+              "Contribution" shall mean any work of authorship, including
+              the original version of the Work and any modifications or additions
+              to that Work or Derivative Works thereof, that is intentionally
+              submitted to Licensor for inclusion in the Work by the copyright owner
+              or by an individual or Legal Entity authorized to submit on behalf of
+              the copyright owner. For the purposes of this definition, "submitted"
+              means any form of electronic, verbal, or written communication sent
+              to the Licensor or its representatives, including but not limited to
+              communication on electronic mailing lists, source code control systems,
+              and issue tracking systems that are managed by, or on behalf of, the
+              Licensor for the purpose of discussing and improving the Work, but
+              excluding communication that is conspicuously marked or otherwise
+              designated in writing by the copyright owner as "Not a Contribution."
+        
+              "Contributor" shall mean Licensor and any individual or Legal Entity
+              on behalf of whom a Contribution has been received by Licensor and
+              subsequently incorporated within the Work.
+        
+           2. Grant of Copyright License. Subject to the terms and conditions of
+              this License, each Contributor hereby grants to You a perpetual,
+              worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+              copyright license to reproduce, prepare Derivative Works of,
+              publicly display, publicly perform, sublicense, and distribute the
+              Work and such Derivative Works in Source or Object form.
+        
+           3. Grant of Patent License. Subject to the terms and conditions of
+              this License, each Contributor hereby grants to You a perpetual,
+              worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+              (except as stated in this section) patent license to make, have made,
+              use, offer to sell, sell, import, and otherwise transfer the Work,
+              where such license applies only to those patent claims licensable
+              by such Contributor that are necessarily infringed by their
+              Contribution(s) alone or by combination of their Contribution(s)
+              with the Work to which such Contribution(s) was submitted. If You
+              institute patent litigation against any entity (including a
+              cross-claim or counterclaim in a lawsuit) alleging that the Work
+              or a Contribution incorporated within the Work constitutes direct
+              or contributory patent infringement, then any patent licenses
+              granted to You under this License for that Work shall terminate
+              as of the date such litigation is filed.
+        
+           4. Redistribution. You may reproduce and distribute copies of the
+              Work or Derivative Works thereof in any medium, with or without
+              modifications, and in Source or Object form, provided that You
+              meet the following conditions:
+        
+              (a) You must give any other recipients of the Work or
+                  Derivative Works a copy of this License; and
+        
+              (b) You must cause any modified files to carry prominent notices
+                  stating that You changed the files; and
+        
+              (c) You must retain, in the Source form of any Derivative Works
+                  that You distribute, all copyright, patent, trademark, and
+                  attribution notices from the Source form of the Work,
+                  excluding those notices that do not pertain to any part of
+                  the Derivative Works; and
+        
+              (d) If the Work includes a "NOTICE" text file as part of its
+                  distribution, then any Derivative Works that You distribute must
+                  include a readable copy of the attribution notices contained
+                  within such NOTICE file, excluding those notices that do not
+                  pertain to any part of the Derivative Works, in at least one
+                  of the following places: within a NOTICE text file distributed
+                  as part of the Derivative Works; within the Source form or
+                  documentation, if provided along with the Derivative Works; or,
+                  within a display generated by the Derivative Works, if and
+                  wherever such third-party notices normally appear. The contents
+                  of the NOTICE file are for informational purposes only and
+                  do not modify the License. You may add Your own attribution
+                  notices within Derivative Works that You distribute, alongside
+                  or as an addendum to the NOTICE text from the Work, provided
+                  that such additional attribution notices cannot be construed
+                  as modifying the License.
+        
+              You may add Your own copyright statement to Your modifications and
+              may provide additional or different license terms and conditions
+              for use, reproduction, or distribution of Your modifications, or
+              for any such Derivative Works as a whole, provided Your use,
+              reproduction, and distribution of the Work otherwise complies with
+              the conditions stated in this License.
+        
+           5. Submission of Contributions. Unless You explicitly state otherwise,
+              any Contribution intentionally submitted for inclusion in the Work
+              by You to the Licensor shall be under the terms and conditions of
+              this License, without any additional terms or conditions.
+              Notwithstanding the above, nothing herein shall supersede or modify
+              the terms of any separate license agreement you may have executed
+              with Licensor regarding such Contributions.
+        
+           6. Trademarks. This License does not grant permission to use the trade
+              names, trademarks, service marks, or product names of the Licensor,
+              except as required for reasonable and customary use in describing the
+              origin of the Work and reproducing the content of the NOTICE file.
+        
+           7. Disclaimer of Warranty. Unless required by applicable law or
+              agreed to in writing, Licensor provides the Work (and each
+              Contributor provides its Contributions) on an "AS IS" BASIS,
+              WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+              implied, including, without limitation, any warranties or conditions
+              of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+              PARTICULAR PURPOSE. You are solely responsible for determining the
+              appropriateness of using or redistributing the Work and assume any
+              risks associated with Your exercise of permissions under this License.
+        
+           8. Limitation of Liability. In no event and under no legal theory,
+              whether in tort (including negligence), contract, or otherwise,
+              unless required by applicable law (such as deliberate and grossly
+              negligent acts) or agreed to in writing, shall any Contributor be
+              liable to You for damages, including any direct, indirect, special,
+              incidental, or consequential damages of any character arising as a
+              result of this License or out of the use or inability to use the
+              Work (including but not limited to damages for loss of goodwill,
+              work stoppage, computer failure or malfunction, or any and all
+              other commercial damages or losses), even if such Contributor
+              has been advised of the possibility of such damages.
+        
+           9. Accepting Warranty or Additional Liability. While redistributing
+              the Work or Derivative Works thereof, You may choose to offer,
+              and charge a fee for, acceptance of support, warranty, indemnity,
+              or other liability obligations and/or rights consistent with this
+              License. However, in accepting such obligations, You may act only
+              on Your own behalf and on Your sole responsibility, not on behalf
+              of any other Contributor, and only if You agree to indemnify,
+              defend, and hold each Contributor harmless for any liability
+              incurred by, or claims asserted against, such Contributor by reason
+              of your accepting any such warranty or additional liability.
+        
+           END OF TERMS AND CONDITIONS
+        
+           APPENDIX: How to apply the Apache License to your work.
+        
+              To apply the Apache License to your work, attach the following
+              boilerplate notice, with the fields enclosed by brackets "[]"
+              replaced with your own identifying information. (Don't include
+              the brackets!)  The text should be enclosed in the appropriate
+              comment syntax for the file format. We also recommend that a
+              file or class name and description of purpose be included on the
+              same "printed page" as the copyright notice for easier
+              identification within third-party archives.
+        
+           Copyright [yyyy] [name of copyright owner]
+        
+           Licensed under the Apache License, Version 2.0 (the "License");
+           you may not use this file except in compliance with the License.
+           You may obtain a copy of the License at
+        
+               http://www.apache.org/licenses/LICENSE-2.0
+        
+           Unless required by applicable law or agreed to in writing, software
+           distributed under the License is distributed on an "AS IS" BASIS,
+           WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+           See the License for the specific language governing permissions and
+           limitations under the License.
+        
+Project-URL: Homepage, https://fprime.jpl.nasa.gov
+Project-URL: Documentation, https://nasa.github.io/fprime/
+Project-URL: Repository, https://github.com/fprime-community/fprime-gds
+Keywords: fprime,embedded,nasa,flight,software
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: Operating System :: Unix
+Classifier: Operating System :: POSIX
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Programming Language :: Python :: Implementation :: CPython
+Classifier: Programming Language :: Python :: Implementation :: PyPy
+Classifier: License :: OSI Approved :: Apache Software License
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE.txt
+License-File: NOTICE.txt
+Requires-Dist: flask>=3.0.0
+Requires-Dist: flask_compress>=1.11
+Requires-Dist: pyzmq>=24.0.1
+Requires-Dist: pexpect>=4.8.0
+Requires-Dist: pytest>=6.2.4
+Requires-Dist: flask_restful>=0.3.8
+Requires-Dist: fprime-tools>=3.4.3
+Requires-Dist: argcomplete>=1.12.3
+Requires-Dist: Jinja2>=2.11.3
+Requires-Dist: openpyxl>=3.0.10
+Requires-Dist: pyserial>=3.5
+Requires-Dist: pydantic>=2.6
+Requires-Dist: lark>=1.2.2
+Requires-Dist: PyYAML>=6.0.2
+Requires-Dist: spacepackets>=0.30.0
+Requires-Dist: crc>=7.0.0
+Dynamic: license-file
+
+# F´ GDS
+
+**Note:** This README describes GDS internals. Refer to the [F´ Documentation](https://fprime.jpl.nasa.gov/latest/docs/user-manual/overview/gds-introduction/) for instructions on how to use the GDS.
+
+Issues should be reported here: [File an issue](https://github.com/nasa/fprime/issues/new/choose)
+
+## Overview
+The GDS consists of a collection of classes and tools that provide an interface for fprime
+deployments, allowing users to view telemetry and events and send commands.
+
+The GDS HTML GUI is an almost completely rewritten version of the F´ GSE UI, our historical
+ground system that has been deprecated due to its Python 2 requirement.
+
+The GDS was designed to be adaptable, easily understandable, and easily expandable. To this end, it
+is built using publisher/subscriber relationships.
+
+The diagram below shows the basic layout of the GDS. Data from the F´ deployment first enters the
+GDS at the TCP client. Each packet is then passed directly to the distributor which is responsible
+for parsing the packets in to data messages and sending on each message type (currently only events,
+channels, and packetized telemetry are supported) to decoders registered for that type. The decoder
+is responsible for turning that data message into a data object which it passes along to all
+consumers registered to it. These consumers could be anything, but in the GDS they are GUI panels
+that display the data. For outgoing data, the structure is similar. Currently, commands are the only
+output data type included. Command data objects are created in the command panel and then sent to
+the command encoder registered to that panel. Encoders take a data object and turn it into binary
+data that can be sent to the F´ deployment. The binary data is then passed to the TCP client
+which is registered to the encoder. Finally, the TCP client send the data back to the TCP server and
+the F´ deployment.  
+![The layout of the GDS](https://raw.githubusercontent.com/nasa/fprime/refs/heads/devel/docs/img/gds_layout.jpg)
+
+All of these objects are created and registered to other objects when the GDS
+is initialized. Thus, all of the structure of the GDS is created in one place,
+and can be easily modified.
+
+## GDS Tools
+The GDS was designed to have flexible configurations of consumers for its various data decoders.
+This has been used to support several additional tools.
+
+### GDS Standard Pipeline
+The standard pipeline can be thought of as a Python helper-layer to instantiate the GDS and connect
+to an F´ deployment. The pipeline provides event, telemetry and command histories, sending
+commands and registering consumers to the GDS decoders. The Standard Pipeline can be found
+[here](src/fprime_gds/common/pipeline/standard.py).
+
+### GDS Integration Test API
+The Integration Test API is a tool that provides the ability to write integration-level tests for an F´ deployment using the GDS. The tool provides history searches/asserts, command sending, a detailed test log, sub-histories and convenient access to GDS data objects. The test API comes with its own [user guide](https://fprime.jpl.nasa.gov/latest/docs/user-manual/gds/gds-test-api-guide/) and is built on top of the Standard Pipeline.
+
+## GDS GUI Usage
+
+A guide for how to use the GDS is available in the [F Prime documentation](https://fprime.jpl.nasa.gov/latest/docs/user-manual/overview/gds-introduction)
+
+## Classes
+The GDS back end is composed of several different data processing units. For 
+most of the units described below, a base class describes the interface and 
+subclasses implement the interface for specific data types (such as events,
+channels, etc).
+
+To expand the GDS to accept more data types or have additional features, new classes 
+can be written and registered into the existing structure.
+
+### TCP Client
+The TCP client is simply a passthrough for data coming from the TCP Server and 
+the F´ Distribution. The client handles all the socket connection overhead and 
+passes un-parsed data onto all objects registered with it.
+
+### Distributor
+The distributer is responsible for taking in raw binary data, parsing off the 
+length and descriptor, and then passing the data to all decoders registered to 
+that descriptor. Descriptor types include events, channels, packets, etc (a full
+enumeration can be found in (config_manager.py). The binary data that 
+the descriptor receives should be of the form:
+
+```mermaid
+---
+title: "Binary format received by Distributors"
+---
+packet-beta
+  0-31: "Length [4 bytes]"
+  32-63: "Type Descriptor [4 bytes]"
+  64-95: "Message Data [variable length]"
+```
+
+The distributor should then pass only the message data along to the decoders. 
+
+### Templates
+For each general data type (channel, event, etc) there is a template type. 
+Instances of these classes hold information about specific channels or event 
+types (ex. the NumPkts channel or the FirstPacketReceived event).
+
+Template classes hold information such as the channel/event/packet's id, name, 
+argument types, value type, format string, etc. This information is used by 
+decoders when parsing data that they receive. 
+
+### Data Types
+For each general data type (channel, event, etc) there is a type class. 
+Instances of these classes hold information about a specific channel reading or 
+event. They contain the actual data parsed by the decoders. As such, they are 
+the data type returned by encoders. All of these classes have a time field are 
+derived from type SysData, which implements a compare function, allowing any list 
+of SysData objects to be sorted by time. Each inherited type should also 
+implement the __str__ method so the objects can be easily printed. 
+
+Each instance of a type class also has a reference to the corresponding template
+class for that channel or event type.
+
+### Loaders
+Loaders are used to construct dictionaries of channel and events. These 
+dictionaries have template classes as values and ids or names as keys. 
+
+Each dictionary type has their own loader, but subclassing is used to prevent
+code duplication. For example, there are loaders for channel and event python
+file dictionaries, but they both subclass the python loader class which provides
+helper functions for reading python file dictionaries. 
+
+### Decoders
+Decoders are responsible for parsing the message data for a specific descriptor
+type. 
+
+Each decoder uses dictionaries produced by loaders to help with its parsing.
+These are given to the decoder's constructor.
+
+The knowledge for how to parse that descriptor type should stay within the 
+decoder. Each decoder type takes in the binary message data, parses it, and 
+sends the resulting data object to all consumers registered to it. 
+
+### Encoders
+Encoders are responsible for taking data objects from consumers (GUI panels), 
+converting them to binary data, and passing them to the TCP client to send to 
+the F´ deployment. 
+
+Like the decoders, encoders use dictionaries produced by loaders to help craft
+the binary output.
+
+### Consumers
+Consumers do not have a specific base class, but instead simply implement a data
+callback method that is called by decoders with parsed data objects as the 
+argument. In the case of the Gds, the consumers are the GUI panels that display 
+data. Consumers can also produce data that is sent to encoders and eventually on
+to the F´ deployment. 
+
+### Main Frame Factory
+This class is responsible for setting up the pipeline of data between different 
+components in the publisher/subscriber interface - that is, it is 
+responsible for registering all of the various components that wish to share
+data. This class also supports the creation of multiple Gds GUI windows which
+all share the same subscriptions and therefore receive the same data. 
+
+### ConfigManager
+The `ConfigManager` class is a singleton config class responsible for storing 
+configurations used by GDS classes, including internal GDS types and constants,
+as well as configuration from the FSW JSON dictionary. It can be controlled via
+the `set_*` methods, but it is recommended to use the `DictionaryParser` class
+to automatically load FSW dictionary data into the config manager.
+
+## Modify GDS Structure
+To setup the structure of the GDS, instances of the above classes are first
+created. Then, they are registered to one another by calling the data producer's
+`register` function with the data consumer as the argument. The data consumer 
+is expected to implement a callback function to receive the data (`data_callback`
+for most classes, but check the base class's documentation for details).
+
+An example of how to instantiate and register classes into the correct structure 
+can be found in the `MainFrameFactory` class.
+
+## Setup
+The Gds requires the packages specified in [setup.py](setup.py).
+
+These can be installed along the Gds package using the following commands:
+
+```
+pip install --upgrade fprime-gds
+```
+
+For full installation instructions, including virtual environment creation and installation verification, see [INSTALL.md](https://github.com/nasa/fprime/blob/devel/docs/INSTALL.md).
+
+## Generate Documentation
+You can generate a doxygen documentation page for the GDS source.
+To do this, you will need to install `doxygen`, `doxypypy` and `graphviz`.
+
+### Linux/Windows WSL
+```
+apt-get install doxygen graphviz
+pip install doxypypy
+```
+
+### Mac
+Install doxygen from the website (http://www.stack.nl/~dimitri/doxygen/download.html) or by using the following command if you have Homebrew
+```
+brew install doxygen
+brew install graphviz
+pip install doxypypy
+```
+
+Next, make `docs/py_filter` available in your system path however you see fit.
+Now you can run `doxygen Doxyfile` in the root directory to generate documentation in `docs/doxy/index.html`

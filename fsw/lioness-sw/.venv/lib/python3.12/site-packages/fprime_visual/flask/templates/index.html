@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F Prime Visualizer</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <img class="logo" src="img/f-logo-gradient.png" alt="f prime logo">
+        <form>
+            <label id="select-folder-zone">
+                Topology:
+                <select id="select-folder">
+                    <option disabled ></option>
+                </select>
+            </label>
+            <label>
+                Connection Graph:
+                <select id="select-file">
+                    <option disabled></option>
+                </select>
+            </label>
+            <label>
+                Layout method:
+                <select id="select-layout">
+                    <option disabled></option>
+                </select>
+            </label>
+        </form>
+        <div id="header-buttons">
+            <img class="header-button" id="screenshot-button" src="img/screenshot.png" alt="screenshot-button">
+            <img class="header-button" id="info-button" src="img/info.png" alt="info-button">
+        </div>
+    </header>
+
+    <div id="alert">
+        <h2>F Prime Visualizer (FPV)</h2>
+        <br>
+        <p>Need Help? Head over to the GitHub repo: <a href="https://github.com/fprime-community/fprime-visual">https://github.com/fprime-community/fprime-visual</a> </p>
+
+    </div>
+    <div id="canvas-container">
+        <canvas id="fprime-graph"></canvas>
+        <canvas id="fprime-graph2"></canvas>
+    </div>
+
+
+    <script src="js/lib/elkjs/elk.bundled.js"></script>
+
+    <script src="js/helpers.js"></script>
+
+    <!-- Pick any file in themes dir to change -->
+    <script src="js/themes/{{ theme_name }}.js"></script>
+<!--    <script src="js/themes/new-light.js"></script>-->
+
+    <script src="js/script.js" type="module"></script>
+
+
+</body>
+</html>

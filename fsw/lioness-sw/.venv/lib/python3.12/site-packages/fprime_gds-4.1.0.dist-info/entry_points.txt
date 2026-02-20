@@ -1,0 +1,14 @@
+[console_scripts]
+fprime-cli = fprime_gds.executables.fprime_cli:main
+fprime-dp-write = fprime_gds.executables.data_product_writer:main
+fprime-fpy-asm = fprime_gds.common.fpy.main:assemble_main
+fprime-fpy-disasm = fprime_gds.common.fpy.main:disassemble_main
+fprime-fpy-model = fprime_gds.common.fpy.main:model_main
+fprime-fpyc = fprime_gds.common.fpy.main:compile_main
+fprime-gds = fprime_gds.executables.run_deployment:main
+fprime-merge-dictionary = fprime_gds.executables.dictionary_merge:main
+fprime-prm-write = fprime_gds.common.tools.params:main
+fprime-seqgen = fprime_gds.common.tools.seqgen:main
+
+[pytest11]
+fprime_test_api = fprime_gds.common.testing_fw.pytest_integration
