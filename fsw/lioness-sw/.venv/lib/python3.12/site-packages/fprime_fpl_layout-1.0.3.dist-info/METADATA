@@ -1,0 +1,21 @@
+Metadata-Version: 2.1
+Name: fprime-fpl-layout
+Version: 1.0.3
+Summary: FPP distribution package for fprime-fpl-layout
+Author-email: Michael Starch <Michael.D.Starch@jpl.nasa.gov>, Thomas Boyer-Chammard <Thomas.Boyer.Chammard@jpl.nasa.gov>
+Project-URL: homepage, https://fprime.jpl.nasa.gov
+Project-URL: documentation, https://nasa.github.io/fprime/
+Keywords: fprime,embedded,nasa,flight,software
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: Operating System :: Unix
+Classifier: Operating System :: POSIX
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.8
+

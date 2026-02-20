@@ -1,0 +1,654 @@
+"""
+fprime.fbuild.cmake:
+
+File to contain basic wrappers for the CMake. This will enable basic CMake commands in order to detect the properties of
+the build. This should not be imported in-person, but rather should be included by the build package. This can be the
+receiver of these delegated functions.
+
+@author mstarch
+"""
+
+# Get a cache directory for building CMakeList file, if need and remove at exit
+import collections
+import copy
+import functools
+import itertools
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+
+from fprime.common.error import FprimeException
+
+
+class CMakeHandler:
+    """
+    CMake handler interacts with an F prime CMake-based system. This will help us interact with CMake in refined ways.
+    """
+
+    CMAKE_LOCATION_FIELDS = [
+        "FPRIME_PROJECT_ROOT",
+        "FPRIME_LIBRARY_LOCATIONS",
+        "FPRIME_FRAMEWORK_PATH",
+    ]
+
+    def __init__(self):
+        """Instantiate a basic CMake handler"""
+        self.settings = {}
+        self._cmake_cache = None
+        self.verbose = False
+        self.cached_help_targets = []
+        try:
+            self._run_cmake(["--help"], print_output=False)
+        except Exception as exc:
+            raise CMakeExecutionException(
+                "CMake executable 'cmake' not found", str(exc), printed=False
+            ) from exc
+
+    def set_verbose(self, verbose):
+        """Sets verbosity"""
+        self.verbose = verbose
+
+    def validate_cmake_cache(self, cmake_args, build_dir):
+        cmake_cache = self._read_cache(build_dir)
+        for key, expected in cmake_args.items():
+            actual = cmake_cache.get(key)
+            # Allow expected variables not to be set in cache.
+            # When building with a newer version of fprime-util and an older version of F prime,
+            # newer CMake options that aren't used by older versions of CMake won't be set in the cache
+            if actual is None:
+                continue
+            expected = str(expected).strip()
+            actual = str(actual).strip()
+            if expected != actual:
+                raise CMakeInconsistentCacheException(key, expected, actual)
+
+    def execute_known_target(
+        self,
+        target,
+        build_dir,
+        path,
+        cmake_args=None,
+        make_args=None,
+        top_target=False,
+        environment=None,
+        full_cache_rebuild=False,
+        print_output=True,
+    ):
+        """
+        Executes a known target for a given build_dir. Path will default to a known path.
+
+        :param build_dir: build_dir to use to run this.
+        :param target: target to execute at the path, using above build_dir
+        :param path: path to run target against. (default) current working directory
+        :param cmake_args: cmake args input
+        :param make_args: arguments to pass to make
+        :param top_target: top-level target. Do not append path name
+        :param environment: environment to setup when executing CMake
+        :param full_cache_rebuild: rebuild the cache fully. Default: False, use the short version
+        :param print_output: should this call print output. Default: True, print output
+        :return: return code from CMake
+        """
+        assert build_dir is not None, "Invalid build dir supplied"
+        build_dir = str(build_dir)
+        cmake_args = {} if cmake_args is None else cmake_args
+        self.validate_cmake_cache(cmake_args, build_dir)
+
+        make_args = {} if make_args is None else make_args
+
+        run_args = ["--build", build_dir]
+        # CMake 3.12+ supports parallel builds with -j
+        jobs = make_args.pop("--jobs", None)
+        if jobs is not None:
+            run_args.extend(["-j", str(jobs)])
+
+        fleshed_args = ["--"] + list(
+            map(lambda key: f"{key}={make_args[key]}", make_args.keys())
+        )
+
+        if target != "" and top_target:
+            cmake_target = target
+        else:
+            module = self.get_cmake_module(path, build_dir)
+            if target == "":
+                cmake_target = module
+            elif top_target:
+                cmake_target = target
+            else:
+                cmake_target = f"{module}_{target}".lstrip("_")
+
+        environment = {} if environment is None else copy.copy(environment)
+        if self.verbose:
+            environment["VERBOSE"] = "1"
+
+        # The cmake target is "" when running build in the root of the F' repo.
+        if cmake_target != "":
+            run_args.extend(["--target", cmake_target])
+
+        try:
+            return self._run_cmake(
+                run_args + fleshed_args,
+                write_override=True,
+                environment=environment,
+                print_output=print_output,
+            )
+        except CMakeExecutionException as exc:
+            # The below code allows to try and refresh the build cache if the target is not found in the cache.
+            # This can catch the case where the cache has not been refreshed since the requested target was added.
+            # Note that this auto-refresh behavior is native to CMake/Ninja when using Ninja as the generator.
+            # Therefore refreshing the cache here should only be tried for Makefile generators:
+            #   --> "No rule to make target" is the make output. If any other output, we raise the exception.
+            no_target = functools.reduce(
+                lambda cur, line: cur or "No rule to make target" in line,
+                exc.get_errors(),
+                False,
+            )
+            if not no_target:
+                raise
+            print(
+                "[CMAKE] CMake failed to detect target, attempting CMake cache refresh and retry"
+            )
+            self.cmake_refresh_cache(build_dir, environment, full=full_cache_rebuild)
+            return self._run_cmake(
+                run_args + fleshed_args,
+                write_override=True,
+                environment=environment,
+                print_output=print_output,
+            )
+
+    def get_include_locations(self, cmake_dir):
+        """
+        Gets the locations that can be used as the root of an include tree. Common directories are placed in these
+        include locations. These include standard builds, configs, etc.
+
+        :param cmake_dir: directory of a CMake build, or directory containing a CMake project
+        :return: []  List of include locations. Order: project, lib, lib, ..., F prime core
+        """
+        # Reading config fields. If the cmake_dir is a project dir, a build cache may be setup.
+        # !! Note: using a project dir will cause file-system side effects, and incur a one-time cost to setup cache !!
+        config_fields = self.get_fprime_configuration(
+            CMakeHandler.CMAKE_LOCATION_FIELDS, cmake_dir
+        )
+        non_null = filter(lambda item: item is not None and item != "", config_fields)
+        # Read cache fields for each possible directory the build_dir, and the new tempdir
+        locations = itertools.chain(*map(lambda value: value.split(";"), non_null))
+        mapped = map(os.path.abspath, locations)
+        # Removes duplicates, by creating an ordered dictionary, and then asking for its keys
+        return list(collections.OrderedDict.fromkeys(mapped).keys())
+
+    def get_include_info(self, path, cmake_dir):
+        """
+        Calculates the include root of the given path. The include root is defined as the following based on the other
+        two values supplied. First, the following paths values are established:
+        - Location of the project's root. This is defined in the project_dir's CMakeList.txt, or in the CMake Cache.
+        - Location of the project's F prime checkout. This is defined in the same places.
+        - Locations of any libraries defined in the same places.
+        From there, the include root of the supplied path is whichever of those paths is your parent. In cases where
+        both are parents, it will take the nearest parent.
+
+        :param path: path to calculate looking for include-root
+        :param cmake_dir: directory of a CMake build, or directory containing a CMake project
+        :return: (relative include path, include root for the given path)
+        """
+        path = (
+            os.path.abspath(path) if path is not None else os.path.abspath(os.getcwd())
+        ) + os.sep
+        possible_parents = self.get_include_locations(cmake_dir)
+        # Check there is some possible parent
+        if not possible_parents:
+            raise CMakeProjectException(
+                cmake_dir,
+                "Does not define any of the cache fields: {}".format(
+                    ",".join(CMakeHandler.CMAKE_LOCATION_FIELDS)
+                ),
+            )
+        # Common-prefix will fail in the case that two directories share a common prefix in their name
+        # So force directory separator to force common prefix to only work on full directory names
+        full_parents = map(lambda dir: os.path.abspath(dir) + os.sep, possible_parents)
+        # Parents *are* the common prefix for their children
+        parents = filter(
+            lambda parent: os.path.commonprefix([parent, path]) == parent, full_parents
+        )
+
+        def parent_reducer(accum, item):
+            """
+            Reduces a list of parents, and the given path, to a single path who is the closes parent to the existing
+            path while stilling being a parent.
+
+            :param accum: latest best parent, or None if no valid parent found
+            :param item: current parent being evaluated
+            :return: next latest best parent
+            """
+            # None items cannot weigh-in
+            if item is None:
+                return accum
+            # Calculate common path
+            prefix = os.path.commonprefix([item, path])
+            # Return the previous parent, if new prefix is not the directory itself, or the old one was closer
+            return (
+                accum
+                if prefix != item or (accum is not None and len(accum) > len(item))
+                else item
+            )
+
+        parents = list(parents)
+        nearest_parent = functools.reduce(parent_reducer, parents, None)
+        # Check that a parent is the true parent
+        if nearest_parent is None:
+            raise CMakeOrphanException(path)
+        return os.path.relpath(path, nearest_parent), nearest_parent.rstrip(os.sep)
+
+    def get_fprime_configuration(self, fields, cmake_dir=None):
+        """
+        Gets fprime configuration for the given field(s). This will return a list of fields for the set of input fields.
+        The user may supply a string for a single value returned as list of one, or a list of fields for list of values.
+
+        :param fields: name of field, or list of names of fields
+        :param cmake_dir: a cmake directory (project or build) to used. default: None, use existing temp cached build.
+        :return: list of values, or Nones
+        """
+        if isinstance(fields, str):
+            fields = [fields]
+        # Setup the build_dir if it can be detected. Without a cache or specified value, we can crash
+        self._cmake_validate_build_dir(cmake_dir)  # Validate the dir
+        return self._read_values_from_cache(fields, build_dir=cmake_dir)
+
+    def generate_build(
+        self, source_dir, build_dir, args=None, ignore_output=False, environment=None
+    ):
+        """Generate a build directory for purposes of the build.
+
+        :param source_dir: source directory to generate from
+        :param build_dir: build directory to generate to
+        :param args: arguments to hand to CMake.
+        :param ignore_output: do not print the output where the user can see it
+        :param environment: environment to set when generating
+        """
+
+        if not os.path.exists(build_dir):
+            os.makedirs(build_dir)
+        # We will CD for build, so this path must become absolute
+        source_dir = os.path.abspath(source_dir)
+        args = {} if args is None else args
+        fleshed_args = map(
+            lambda key: ("{}={}" if key.startswith("--") else "-D{}={}").format(
+                key, args[key]
+            ),
+            args.keys(),
+        )
+        # Creating a file to mark the directory as a F Prime directory
+        (Path(build_dir) / ".fprime-build-dir").touch()
+        self.cmake_validate_source_dir(source_dir)
+        self._run_cmake(
+            ["-S", source_dir] + list(fleshed_args),
+            workdir=build_dir,
+            print_output=not ignore_output,
+            write_override=True,
+            environment=environment,
+        )
+
+    def get_cmake_module(self, path, build_dir):
+        """Gets the CMake module
+
+        CMake modules are constructed from a path relative to some project root (fprime, deployment, or library roots).
+        This relative path is then converted to use "_" instead of "/"
+
+        Args:
+            path: path to contextualize. May be None to use os.getcwd().
+            build_dir: build directory to use
+
+        Returns:
+            CMake module name in format x_y_z
+        """
+        project_relative_path = self.get_project_relative_path(path, build_dir)
+        module = project_relative_path.replace(
+            ".", ""
+        )  # Handles case where relative path is exactly "."
+        module = module.replace(os.sep, "_")
+        return module
+
+    def get_project_relative_path(self, path, build_dir):
+        """Gets the path relative to the cmake setup, or raises CMakeOrphanException
+
+        Args:
+            path: path to contextualize. May be None to use os.getcwd().
+            build_dir: build directory to use
+
+        Returns:
+            path string that is relative to some root of the project. i.e. used for target suffix names
+        """
+        if path is None:
+            path = os.getcwd()
+        # Get module name from the relative path to include root
+        include_root = self.get_include_info(path, build_dir)[1]
+        return os.path.relpath(path, include_root)
+
+    def get_available_targets(self, build_dir, path):
+        """Gets a list of available CMake targets in the current directory
+
+        Args:
+            build_dir: build directory to use for detecting targets
+            path: contextual path. None for "cwd"
+
+        Note:
+            This code might not work on non-GNU makefile variants of CMake as it depends on the "help" target
+
+        Returns:
+            list of contextual CMake make targets
+        """
+        if not self.cached_help_targets:
+            run_args = ["--build", build_dir, "--target", "help"]
+            stdout, _ = self._run_cmake(
+                run_args, write_override=True, print_output=False
+            )
+            # help target lists all targets but has a different output format for ninja and make
+            if "Makefile" not in stdout[0]:
+                # Ninja output
+                self.cached_help_targets.extend(
+                    [
+                        line.replace(": phony", "").strip()
+                        for line in stdout
+                        if line.endswith(": phony\n")
+                    ]
+                )
+            else:
+                # Makefile output
+                self.cached_help_targets.extend(
+                    [
+                        line.replace("...", "").strip()
+                        for line in stdout
+                        if line.startswith("...")
+                    ]
+                )
+
+        prefix = self.get_cmake_module(path, build_dir)
+        return [
+            make.replace(prefix, "").strip("_")
+            for make in self.cached_help_targets
+            if make.startswith(prefix)
+        ]
+
+    def is_target_supported(self, build_dir: str, target: str):
+        """Checks if a target is supported by the current build directory
+
+        Args:
+            build_dir: build directory to use for detecting targets
+            target: target name to check
+        """
+        # Load in self.cached_help_targets
+        self.get_available_targets(build_dir, None)
+        return target in self.cached_help_targets
+
+    def _is_noop_supported(self, build_dir: str):
+        """Checks if the noop target is supported by the current build directory.
+
+        Note: This function is implemented by checking the CMake files in order to bypass the call
+        to `cmake --target help` in get_available_target() which is very slow when using Makefiles
+
+        Args:
+            build_dir: build directory to use for detecting noop target
+        """
+        noop_file = os.path.join(
+            self._read_cache(build_dir)["FPRIME_FRAMEWORK_PATH"],
+            "cmake",
+            "target",
+            "noop.cmake",
+        )
+        if os.path.isfile(noop_file):
+            return True
+        return False
+
+    @staticmethod
+    def purge(build_dir):
+        """
+        Reusable purge functionality, so the user may purge or the system may cleanup itself
+
+        :param build_dir: build dir specified to purge
+        """
+        shutil.rmtree(build_dir)
+
+    def _read_values_from_cache(self, keys, build_dir):
+        """
+        Reads set values from cache into an output tuple.
+
+        :param keys: keys to read in iterable
+        :param build_dir: build directory containing cache file
+        :return: a tuple of keys, None if not part of cache
+        """
+        cache = self._read_cache(build_dir)
+        # Reads cache values suppressing KeyError, {}.get(x, default=None)
+        miner = cache.get
+        return tuple(map(miner, keys))
+
+    def _read_cache(self, build_dir):
+        """
+        Reads the cache from the associated build_dir. This will return a dictionary of cache variable name to
+        its value. The first run will call cmake to extract the cache and cache it internally. Subsequent
+        calls will return the cached cache.
+
+        :param build_dir: build directory to harvest for cache variables
+        :return: {<cmake cache variable>: <cmake cache value>}
+        """
+        if self._cmake_cache is not None:
+            return self._cmake_cache
+
+        reg = re.compile("([^:]+):[^=]*=(.*)")
+        # Check that the build_dir is properly setup
+        self._cmake_validate_build_dir(build_dir)
+        stdout, _ = self._run_cmake(["-LA"], workdir=build_dir, print_output=False)
+        # Scan for lines in stdout that have non-None matches for the above regular expression
+        valid_matches = filter(lambda item: item is not None, map(reg.match, stdout))
+        # Return the dictionary composed from the match groups
+        self._cmake_cache = dict(
+            map(lambda match: (match.group(1), match.group(2)), valid_matches)
+        )
+        return self._cmake_cache
+
+    @staticmethod
+    def cmake_validate_source_dir(source_dir):
+        """
+        Raises an exception if the source dir is not a valid CMake source directory. This means a CMakeLists.txt exists
+        and defines within it a project call.
+
+        :param source_dir: source directory to validate
+        """
+        cmake_file = os.path.join(source_dir, "CMakeLists.txt")
+        if not os.path.isfile(cmake_file):
+            raise CMakeProjectException(source_dir, "No CMakeLists.txt is defined")
+        # Test the cmake_file for project(
+        with open(cmake_file, encoding="utf8") as file_handle:
+            project_lines = list(
+                filter(lambda line: "project(" in line, file_handle.readlines())
+            )
+            if not project_lines:
+                raise CMakeProjectException(
+                    source_dir, f"No 'project()' calls in {cmake_file}"
+                )
+
+    @staticmethod
+    def _cmake_validate_build_dir(build_dir):
+        """
+        Raises an exception if the build dir is not a valid CMake build directory
+
+        :param build_dir: build_dir to validate
+        """
+        cache_file = os.path.join(build_dir, "CMakeCache.txt")
+        if not os.path.isfile(cache_file):
+            raise CMakeInvalidBuildException(build_dir)
+
+    def cmake_refresh_cache(self, build_dir, environment=None, full=False):
+        """Refresh the CMake cache by calling a known cache-refresh target
+
+        Runs the cmake  target required to refresh the cmake cache. This will allow for unknown targets to be searched
+        for before the utility gives up and produces.
+
+        :param build_dir: cache directory to run in
+        :param environment: environment to pass in when refreshing
+        :param full: perform a full rebuild
+        """
+        environment = {} if environment is None else environment
+        if full:
+            run_args = ["--build", str(build_dir)]
+            if self.verbose:
+                print("[CMAKE] Refreshing CMake build cache")
+                environment["VERBOSE"] = "1"
+            run_args.extend(["--target", "rebuild_cache"])
+            self._cmake_cache = None  # Clear internal cache of cmake variables
+            self._run_cmake(
+                run_args,
+                write_override=True,
+                environment=environment,
+                print_output=True,
+            )
+        else:
+            if self.verbose:
+                print("[CMAKE] Checking CMake cache for rebuild")
+            # Backwards compatibility: refresh_cache was named noop until v3.3.x
+            refresh_target = (
+                "noop" if self._is_noop_supported(str(build_dir)) else "refresh_cache"
+            )
+            self.execute_known_target(
+                refresh_target,
+                build_dir,
+                None,
+                top_target=True,
+                full_cache_rebuild=True,
+                print_output=True,
+                environment=environment,
+            )
+
+    def _run_cmake(
+        self,
+        arguments,
+        workdir=None,
+        print_output=True,
+        write_override=False,
+        environment=None,
+    ):
+        """
+        Will run the cmake system supplying the given arguments. Assumes that the CMake executable is somewhere on the
+        path in order for this to run.
+
+        :param arguments: arguments to supply to CMake.
+        :param workdir: work directory to run in
+        :param print_output: print_output to the screen. Default: True
+        :param write_override: allows for non-read-only commands
+        :param environment: environment to write into
+        :return: (stdout, stderr)
+        """
+        if environment is None:
+            environment = {}
+
+        cm_environ = os.environ.copy()
+        cm_environ.update(self.settings.get("environment", {}))
+        cm_environ.update(environment)
+        cargs = ["cmake"]
+        if not write_override:
+            cargs.append("-N")
+        cargs.extend(arguments)
+        if self.verbose:
+            print(f"""[CMAKE] '{" ".join(cargs)}'""")
+            for key, val in sorted(cm_environ.items(), key=lambda x: x[0]):
+                print(f"[CMAKE]     {key}={val}")
+
+        # Run CMake and handle output as requested (print to console OR capture and return)
+        result = subprocess.run(
+            cargs,
+            cwd=workdir,
+            env=cm_environ,
+            text=True,
+            capture_output=(not print_output),
+        )
+        ret = result.returncode
+        stdout = result.stdout.splitlines(keepends=True) if result.stdout else []
+        stderr = result.stderr.splitlines(keepends=True) if result.stderr else []
+
+        # Raising an exception when the return code is non-zero allows us to handle the exception internally if it is
+        # needed. Thus we do not just exit.
+        if ret != 0:
+            msg = f"CMake erred with return code {ret}"
+            raise CMakeExecutionException(
+                msg,
+                stderr,
+                print_output,
+                ret,
+            )
+        return stdout, stderr
+
+
+class CMakeException(FprimeException):
+    """Error occurred within this CMake package"""
+
+    def __init__(self, message, exit_code=1):
+        super().__init__(message)
+        self.exit_code = exit_code
+
+
+class CMakeInconsistentCacheException(CMakeException):
+    """Project CMakeCache.txt is inconsistent with settings.ini file"""
+
+    def __init__(self, key, expected, actual):
+        """Force an appropriate message"""
+        super().__init__(
+            f"Expected CMake variable {key} to be set to '{expected}', was actually set to '{actual}'. This is usually caused by updating the settings.ini file without purging and regenerating the accompanying build cache."
+        )
+
+
+class CMakeOrphanException(CMakeException):
+    """File is not managed by CMake project"""
+
+    def __init__(self, file_dir):
+        """Force an appropriate message"""
+        super().__init__(f"{file_dir} is outside the F prime project")
+
+
+class CMakeProjectException(CMakeException):
+    """Invalid project directory"""
+
+    def __init__(self, project_dir, error):
+        """Force an appropriate message"""
+        super().__init__(f"{project_dir} is an invalid F prime deployment. {error}")
+
+
+class CMakeInvalidBuildException(CMakeException):
+    """The supplied build directory was not setup as a CMake value"""
+
+    def __init__(self, build_dir):
+        """Force an appropriate message"""
+        super().__init__(
+            f"{build_dir} is not a CMake build directory. Please setup using 'fprime-util generate'"
+        )
+
+
+class CMakeExecutionException(CMakeException):
+    """Pass up a CMake Error as an Exception"""
+
+    def __init__(self, message, stderr, printed, exit_code=1):
+        """The error data should be stored"""
+        super().__init__(message, exit_code)
+        self.stderr = stderr
+        self.need = not printed
+
+    def get_errors(self):
+        """
+        Returns the error stream data to the caller
+        :return: stderr of CMake as supplied into this Exception
+        """
+        return self.stderr
+
+    def need_print(self):
+        """
+        Returns if the errors need to be printed
+        :return: need print
+        """
+        return self.need
+
+
+class CMakeNoSuchTargetException(CMakeException):
+    """The target does not exist."""
+
+    def __init__(self, build_dir, target):
+        """Better messaging for this exception"""
+        super().__init__(f"{build_dir} does not support target {target}")

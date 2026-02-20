@@ -8,8 +8,6 @@ fsw/lioness-sw/*.template.cpp
 fsw/lioness-sw/*.template.hpp
 
 # Virtual environments
-fsw/lioness-sw/venv/
-fsw/lioness-sw/fprime-venv/
 
 # IDE and editor files
 .idea/

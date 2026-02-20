@@ -1,0 +1,67 @@
+{# -*- engine: jinja -*- #}
+<table class="file-list">
+  <col/>
+  <colgroup span="3"/>
+  <colgroup span="2"/>
+  <colgroup span="2"/>
+  {% if not EXCLUDE_CONDITIONS %}
+  <colgroup span="2"/>
+  {% endif %}
+  {% if SHOW_DECISION %}
+  <colgroup span="2"/>
+  {% endif %}
+  {% if not EXCLUDE_CALLS %}
+  <colgroup span="2"/>
+  {% endif %}
+
+  <tr>
+    <th scope="col">File</th>
+    <th scope="colgroup" colspan=3>Lines</th>
+    <th scope="colgroup" colspan=2>Functions</th>
+    <th scope="colgroup" colspan=2>Branches</th>
+    {% if not EXCLUDE_CONDITIONS %}
+    <th scope="colgroup" colspan=2>Conditions</th>
+    {% endif %}
+    {% if SHOW_DECISION %}
+    <th scope="colgroup" colspan=2>Decisions</th>
+    {% endif %}
+    {% if not EXCLUDE_CALLS %}
+    <th scope="colgroup" colspan=2>Calls</th>
+    {% endif %}
+  </tr>
+
+  {% for row in entries %}
+
+  <tr>
+    <th scope="row">
+      {% if row.link is not none %}
+      <a href="{% if info.single_page %}#{% endif %}{{row.link}}">{{row.filename}}</a>
+      {% else %}
+      {{row.filename}}
+      {% endif %}
+    </th>
+    <td>
+      <meter class="{{row.lines.class}}" min="0" max="100" value="{{row.lines.coverage}}" title="{{row.lines.coverage}}%">{{row.lines.coverage}}</meter>
+    </td>
+    <td class="CoverValue line-coverage {{row.lines.class}}">{{row.lines.coverage}}%</td>
+    <td class="CoverValue line-coverage {{row.lines.class}}">{{row.lines.exec}} / {{row.lines.total}}</td>
+    <td class="CoverValue function-coverage {{row.functions.class}}">{{row.functions.coverage}}%</td>
+    <td class="CoverValue function-coverage {{row.functions.class}}">{{row.functions.exec}} / {{row.functions.total}}</td>
+    <td class="CoverValue branch-coverage {{row.branches.class}}">{{row.branches.coverage}}%</td>
+    <td class="CoverValue branch-coverage {{row.branches.class}}">{{row.branches.exec}} / {{row.branches.total}}</td>
+    {% if not EXCLUDE_CONDITIONS %}
+    <td class="CoverValue decision-coverage {{row.conditions.class}}">{{row.conditions.coverage}}%</td>
+    <td class="CoverValue decision-coverage {{row.conditions.class}}">{{row.conditions.exec}} / {{row.conditions.total}}</td>
+    {% endif %}
+    {% if SHOW_DECISION %}
+    <td class="CoverValue decision-coverage {{row.decisions.class}}">{{row.decisions.coverage}}%</td>
+    <td class="CoverValue decision-coverage {{row.decisions.class}}">{{row.decisions.exec}} / {{row.decisions.total}}</td>
+    {% endif %}
+    {% if not EXCLUDE_CALLS %}
+    <td class="CoverValue branch-coverage {{row.branches.class}}">{{row.calls.coverage}}%</td>
+    <td class="CoverValue branch-coverage {{row.branches.class}}">{{row.calls.exec}} / {{row.calls.total}}</td>
+    {% endif %}
+  </tr>
+
+  {% endfor %}
+</table>
