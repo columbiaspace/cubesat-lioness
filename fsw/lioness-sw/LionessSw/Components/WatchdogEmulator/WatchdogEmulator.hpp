@@ -43,6 +43,14 @@ class WatchdogEmulator final : public WatchdogEmulatorComponentBase {
                          U32 context           //!< The call order
                          ) override;
 
+    //! Handler implementation for command SET_COUNTDOWN
+    //!
+    //! Manually set the watchdog countdown in scheduler ticks.
+    void SET_COUNTDOWN_cmdHandler(FwOpcodeType opCode,  //!< The opcode
+                                  U32 cmdSeq,           //!< The command sequence number
+                                  U32 ticks             //!< Countdown value in ticks
+                                  ) override;
+
     static constexpr U32 TIMEOUT_TICKS = 50;
     U32 m_countdownTicks;
     bool m_resetAsserted;

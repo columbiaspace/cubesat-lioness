@@ -39,8 +39,15 @@ void WatchdogEmulator ::schedIn_handler(FwIndexType portNum, U32 context) {
 
     if ((this->m_countdownTicks == 0U) && (not this->m_resetAsserted)) {
         this->resetOut_out(0);
+        this->log_ACTIVITY_HI_ResetAsserted();
         this->m_resetAsserted = true;
     }
+}
+
+void WatchdogEmulator ::SET_COUNTDOWN_cmdHandler(FwOpcodeType opCode, U32 cmdSeq, U32 ticks) {
+    this->m_countdownTicks = ticks;
+    this->m_resetAsserted = false;
+    this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::OK);
 }
 
 }  // namespace LionessSw
