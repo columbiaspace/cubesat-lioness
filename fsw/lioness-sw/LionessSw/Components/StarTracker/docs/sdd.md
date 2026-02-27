@@ -2,6 +2,9 @@
 
 Processes images into star vectors and satellite orientation
 
+## Star Vector
+https://github.com/astropy/photutils
+
 ## Usage Examples
 Add usage examples here
 
