@@ -9,7 +9,7 @@
 
 #include "LionessSw/Components/fsw_watchdog/fsw_watchdogComponentAc.hpp"
 
-namespace FSW_Watchdog {
+namespace Components {
 
   class fsw_watchdog final :
     public fsw_watchdogComponentBase
