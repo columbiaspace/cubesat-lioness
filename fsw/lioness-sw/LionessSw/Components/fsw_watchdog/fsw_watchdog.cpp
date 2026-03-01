@@ -6,7 +6,7 @@
 
 #include "LionessSw/Components/fsw_watchdog/fsw_watchdog.hpp"
 
-namespace FSW_Watchdog {
+namespace Components {
 
   // ----------------------------------------------------------------------
   // Component construction and destruction

@@ -1,4 +1,4 @@
-module FSW_Watchdog {
+module Components {
     @ Watchdog circuit for fsw
     passive component fsw_watchdog {
 
