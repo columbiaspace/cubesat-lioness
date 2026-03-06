@@ -146,7 +146,3 @@ Once we know what hardware for the sun sensor we will need, we need to figure ou
 
 [^3]: RP-Photonics, [_Operation Modes of Photodiodes_, Dr. Paschotta](https://www.rp-photonics.com/photodiodes.html#:~:text=Photovoltaic%20mode:%20Here%2C%20one%20does,quite%20linearly%20with%20optical%20power.)
 
-
-
-
-how are my notes?
