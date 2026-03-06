@@ -86,7 +86,7 @@ The MLX75306 Linear Optical Array used in the paper is now discontinued, but may
 
 ## Power Consumption (Work in Progress)
 
-**Photodiodes**: operating in (zero-bias) photovoltaic mode generate their own current and consume 0 mW of bus power[^3].
+**Photodiodes**: operating in (zero-bias) photovoltaic mode generate their own current and consume 0 mW of bus power [^3].
 
 **Quadrant**:
 
@@ -144,7 +144,7 @@ Once we know what hardware for the sun sensor we will need, we need to figure ou
 [^2]: [_Array-based digital sun-sensor design for CubeSat application_](https://resolver.ebsco.com/c/hvnjcg/result?sid=EBSCO:edselp&genre=article&issn=00945765&ISBN=&volume=178&issue=&date=20210101&spage=81&pages=81-88&title=Acta%20Astronautica&atitle=Array-based%20digital%20sun-sensor%20design%20for%20CubeSat%20application&aulast=Bolshakov%2C%20Konstantin&id=DOI:10.1016/j.actaastro.2020.08.005), Bolshakov et. al
 
 
-[^3] RP-Photonics, [_Operation Modes of Photodiodes_, Dr. Paschotta](https://www.rp-photonics.com/photodiodes.html#:~:text=Photovoltaic%20mode:%20Here%2C%20one%20does,quite%20linearly%20with%20optical%20power.)
+[^3]: RP-Photonics, [_Operation Modes of Photodiodes_, Dr. Paschotta](https://www.rp-photonics.com/photodiodes.html#:~:text=Photovoltaic%20mode:%20Here%2C%20one%20does,quite%20linearly%20with%20optical%20power.)
 
 
 
