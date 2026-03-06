@@ -1,30 +1,47 @@
 // ======================================================================
-// \title  camera.hpp
-// \author jchen25
-// \brief  hpp file for camera component implementation class
+// \title  Camera.hpp
+// \author gracexu
+// \brief  hpp file for Camera component implementation class
 // ======================================================================
 
-#ifndef Camera_camera_HPP
-#define Camera_camera_HPP
+#ifndef Components_Camera_HPP
+#define Components_Camera_HPP
 
-#include "LionessSw/Components/camera/cameraComponentAc.hpp"
+#include "LionessSw/Components/camera/CameraComponentAc.hpp"
 
-namespace Camera {
+namespace Components {
 
-class camera final : public cameraComponentBase {
+class Camera final : public CameraComponentBase {
   public:
     // ----------------------------------------------------------------------
     // Component construction and destruction
     // ----------------------------------------------------------------------
 
-    //! Construct camera object
-    camera(const char* const compName  //!< The component name
+    //! Construct Camera object
+    Camera(const char* const compName  //!< The component name
     );
 
-    //! Destroy camera object
-    ~camera();
+    //! Destroy Camera object
+    ~Camera();
+
+  private:
+    // ----------------------------------------------------------------------
+    // Handler implementations for commands
+    // ----------------------------------------------------------------------
+
+    //! Handler implementation for command TAKE_IMAGE
+    //!
+    //! Type in "snap" to capture an image
+    void TAKE_IMAGE_cmdHandler(FwOpcodeType opCode,  //!< The opcode
+                               U32 cmdSeq            //!< The command sequence number
+                               ) override;
+
+    //! Handler implementation for command SET_CONTINUOUS
+    void SET_CONTINUOUS_cmdHandler(FwOpcodeType opCode,  //!< The opcode
+                                   U32 cmdSeq,           //!< The command sequence number
+                                   bool bool) override;
 };
 
-}  // namespace Camera
+}  // namespace Components
 
 #endif
