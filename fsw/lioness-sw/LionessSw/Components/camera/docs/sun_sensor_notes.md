@@ -56,6 +56,7 @@ For a brief explanation of each design type, please visit Bolshakov et. al[^2].
 ([DigiKey](https://www.digikey.com/en/product-highlight/o/osi/qd7-0-sd-qd50-0-sd-position-sensing-detectors)) ([QD7-0-SD DataSheet](https://www.digikey.com/en/product-highlight/o/osi/qd7-0-sd-qd50-0-sd-position-sensing-detectors))
 
 <br>
+
 **Solar Panel**: If Solar Panel already exists, then no new sensors are possibly required for purchase. 
 
 * "An alternative to dedicated photodiodes for light intensity detection
