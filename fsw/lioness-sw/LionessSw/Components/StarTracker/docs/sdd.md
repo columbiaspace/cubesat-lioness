@@ -3,6 +3,7 @@
 Processes images into star vectors and satellite orientation
 
 ## Star Vector
+https://github.com/UWCubeSat/lost
 https://github.com/astropy/photutils
 
 ## Usage Examples
