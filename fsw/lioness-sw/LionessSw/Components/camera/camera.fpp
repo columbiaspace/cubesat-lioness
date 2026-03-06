@@ -1,7 +1,26 @@
-module Camera {
-    @ Component for F Prime FSW framework.
-    passive component camera {
+module Components {
+    @ Active component that handles camera photo taking and file saving
+    @ Receives data from PayloadCom, parses image protocol, saves files
+    passive component Camera {
 
+        # Commands
+        @ Type in "snap" to capture an image
+        sync command TAKE_IMAGE()
+
+        sync command SET_CONTINUOUS(
+            $bool: bool
+        )
+
+        event FileWriteError() severity warning high format "File write error occurred during image transfer"
+
+        @ Total number of file errors encountered
+        telemetry FileErrorCount: U32
+
+        @ Total number of images successfully saved
+        telemetry ImagesSaved: U32
+
+        # Ports
+      
         ##############################################################################
         #### Uncomment the following examples to start customizing your component ####
         ##############################################################################
@@ -27,14 +46,23 @@ module Camera {
         @ Port for requesting the current time
         time get port timeCaller
 
-        @ Enables command handling
-        import Fw.Command
+        @ Port for sending command registrations
+        command reg port cmdRegOut
 
-        @ Enables event handling
-        import Fw.Event
+        @ Port for receiving commands
+        command recv port cmdIn
 
-        @ Enables telemetry channels handling
-        import Fw.Channel
+        @ Port for sending command responses
+        command resp port cmdResponseOut
+
+        @ Port for sending textual representation of events
+        text event port logTextOut
+
+        @ Port for sending events to downlink
+        event port logOut
+
+        @ Port for sending telemetry channels to downlink
+        telemetry port tlmOut
 
         @ Port to return the value of a parameter
         param get port prmGetOut
