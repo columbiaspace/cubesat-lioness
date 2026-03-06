@@ -139,6 +139,7 @@ Once we know what hardware for the sun sensor we will need, we need to figure ou
 
 
 # References
+
 [^1]: SatSearch, [_Sun sensors on the global marketplace for space_, Hywel](https://blog.satsearch.co/2020-02-12-sun-sensors-an-overview-of-systems-available-on-the-global-marketplace-for-space)
 
 [^2]: [_Array-based digital sun-sensor design for CubeSat application_](https://resolver.ebsco.com/c/hvnjcg/result?sid=EBSCO:edselp&genre=article&issn=00945765&ISBN=&volume=178&issue=&date=20210101&spage=81&pages=81-88&title=Acta%20Astronautica&atitle=Array-based%20digital%20sun-sensor%20design%20for%20CubeSat%20application&aulast=Bolshakov%2C%20Konstantin&id=DOI:10.1016/j.actaastro.2020.08.005), Bolshakov et. al
