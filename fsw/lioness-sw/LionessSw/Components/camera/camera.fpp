@@ -8,7 +8,7 @@ module Components {
         sync command TAKE_IMAGE()
 
         sync command SET_CONTINUOUS(
-            $bool: bool
+            $continuous: bool
         )
 
         event FileWriteError() severity warning high format "File write error occurred during image transfer"
