@@ -4,7 +4,7 @@
 // \brief  cpp file for Camera component implementation class
 // ======================================================================
 
-#include "LionessSw/Components/camera/Camera.hpp"
+#include "LionessSw/Components/Camera/Camera.hpp"
 
 namespace Components {
 
@@ -25,7 +25,7 @@ void Camera ::TAKE_IMAGE_cmdHandler(FwOpcodeType opCode, U32 cmdSeq) {
     this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::OK);
 }
 
-void Camera ::SET_CONTINUOUS_cmdHandler(FwOpcodeType opCode, U32 cmdSeq, bool bool) {
+void Camera ::SET_CONTINUOUS_cmdHandler(FwOpcodeType opCode, U32 cmdSeq, bool continuous) {
     // TODO
     this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::OK);
 }

@@ -7,7 +7,7 @@
 #ifndef Components_Camera_HPP
 #define Components_Camera_HPP
 
-#include "LionessSw/Components/camera/CameraComponentAc.hpp"
+#include "LionessSw/Components/Camera/CameraComponentAc.hpp"
 
 namespace Components {
 
@@ -39,7 +39,7 @@ class Camera final : public CameraComponentBase {
     //! Handler implementation for command SET_CONTINUOUS
     void SET_CONTINUOUS_cmdHandler(FwOpcodeType opCode,  //!< The opcode
                                    U32 cmdSeq,           //!< The command sequence number
-                                   bool bool) override;
+                                   bool continuous) override;
 };
 
 }  // namespace Components
