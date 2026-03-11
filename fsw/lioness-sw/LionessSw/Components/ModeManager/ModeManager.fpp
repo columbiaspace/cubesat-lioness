@@ -4,12 +4,35 @@ module Components {
 
         # One async command/port is required for active components
         # This should be overridden by the developers with a useful command/port
-        @ TODO
-        async command TODO opcode 0
 
-        telemetry CurrentMode: string
+        async command ToStandby()
+        async command ToExperiment()
+        async command ToTransmit()
+        async command ToDetumble()
+        async command ToSafe()
 
-        event ModeChanged(mode: string) severity activity high id 0 format "Mode changed to {}"
+        telemetry CurrentMode: LionessSw.MODE   
+        telemetry BatteryLevel: F32
+        telemetry Acceleration: F32
+
+        event ModeChanged(
+            prevmode: LionessSw.MODE, newmode: LionessSw.MODE, reason: string size 20
+        ) severity activity high id 0 format "Mode changed from {} to {} due to {}"
+
+        event InvalidModeChange(
+            prevmode: LionessSw.MODE, newmode: LionessSw.MODE, attemptedBy: string size 20
+        ) severity activity high id 1 format "Invalid Mode Change {} to {} attempted by {}"
+        event BatteryLow(
+            currLevel: F32, safeLevel: F32
+        ) severity activity high id 2 format "Warning: Battery Level {}% < {}%, transitioning to SAFE"
+        event HighSpinRate(
+            currAcceleration: F32, safeAcceleration: F32
+        ) severity activity high id 3 format "Warning: Spin Rate {} > {}, transitioning to DETUMBLE"
+
+        output port getMode: LionessSw.GetMode
+        sync input port schedIn: Svc.Sched
+        sync input port getBattery: LionessSw.GetBattery
+        sync input port getAcceleration: LionessSw.GetAcceleration
 
         ##############################################################################
         #### Uncomment the following examples to start customizing your component ####
