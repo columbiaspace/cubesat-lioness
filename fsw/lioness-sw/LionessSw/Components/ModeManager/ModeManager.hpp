@@ -26,10 +26,7 @@ class ModeManager final : public ModeManagerComponentBase {
 
   //Sensor retrieval functions (dummy functions and values for now)
   private:
-    F32 getBattery();
-    F32 getAcceleration();
-
-    static constexpr F32 SAFE_BATTERY_THRESHOLD = 20.0f;
+    static constexpr F32 SAFE_BATTERY_THRESHOLD = 80.0f;
     static constexpr F32 SAFE_ACCELERATION_THRESHOLD = 10.0f;
 
   private:
@@ -42,13 +39,10 @@ class ModeManager final : public ModeManagerComponentBase {
     // Handler implementations for typed input ports
     // ----------------------------------------------------------------------
 
-    //! Handler implementation for getAcceleration
-    void getAcceleration_handler(FwIndexType portNum,  //!< The port number
-                                 F32& magnitude) override;
-
-    //! Handler implementation for getBattery
-    void getBattery_handler(FwIndexType portNum,  //!< The port number
-                            F32& level) override;
+    //! Handler implementation for getMode
+    void getMode_handler(FwIndexType portNum,  //!< The port number
+                                 LionessSw::MODE& mode
+                                ) override;
 
     //! Handler implementation for schedIn
     void schedIn_handler(FwIndexType portNum,  //!< The port number

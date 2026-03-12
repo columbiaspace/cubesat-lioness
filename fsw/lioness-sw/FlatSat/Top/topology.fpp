@@ -8,7 +8,6 @@ module FlatSat {
     rateGroup1
     rateGroup2
     rateGroup3
-    rateGroup1Hz
   }
 
   topology FlatSat {

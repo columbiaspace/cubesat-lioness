@@ -29,10 +29,10 @@ module Components {
             currAcceleration: F32, safeAcceleration: F32
         ) severity activity high id 3 format "Warning: Spin Rate {} > {}, transitioning to DETUMBLE"
 
-        output port getMode: LionessSw.GetMode
+        sync input port getMode: LionessSw.GetMode
         sync input port schedIn: Svc.Sched
-        sync input port getBattery: LionessSw.GetBattery
-        sync input port getAcceleration: LionessSw.GetAcceleration
+        output port getBattery: LionessSw.GetBattery
+        output port getAcceleration: LionessSw.GetAcceleration
 
         ##############################################################################
         #### Uncomment the following examples to start customizing your component ####

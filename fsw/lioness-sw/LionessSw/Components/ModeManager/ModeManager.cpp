@@ -18,33 +18,24 @@ ModeManager ::ModeManager(const char* const compName) : ModeManagerComponentBase
 
 ModeManager ::~ModeManager() {}
 
-// Dummy implementations until real sensor interfaces are ready
-F32 ModeManager::getBattery() {
-    return 100.0f;
-}
-
-F32 ModeManager::getAcceleration() {
-    return 0.0f;
-}
 
 // ----------------------------------------------------------------------
 // Handler implementations for typed input ports
 // ----------------------------------------------------------------------
 
-void ModeManager ::getAcceleration_handler(FwIndexType portNum, F32& magnitude) {
+void ModeManager ::getMode_handler(FwIndexType portNum, LionessSw::MODE& mode) {
     // TODO
-    magnitude = this->getAcceleration();
-}
-
-void ModeManager ::getBattery_handler(FwIndexType portNum, F32& level) {
-    // TODO
-    level = this->getBattery();
+    mode = this->currMode;
 }
 
 void ModeManager ::schedIn_handler(FwIndexType portNum, U32 context) {
-    // TODO
-    this->currBattery = getBattery();
-    this->currAcceleration = getAcceleration();
+    // TOD
+    if(this->isConnected_getBattery_OutputPort(0)) {
+        this->getBattery_out(0, this->currBattery);
+    }
+    if(this->isConnected_getAcceleration_OutputPort(0)) {
+        this->getAcceleration_out(0, this->currAcceleration);
+    }
 
     this->tlmWrite_BatteryLevel(this->currBattery);
     this->tlmWrite_Acceleration(this->currAcceleration);
@@ -90,10 +81,16 @@ void ModeManager ::ToExperiment_cmdHandler(FwOpcodeType opCode, U32 cmdSeq) {
     // TODO
     switch(this->currMode) {
         case MODE::STANDBY:
-            this->log_ACTIVITY_HI_ModeChanged(this->currMode, MODE::EXPERIMENT, Fw::LogStringArg("cmd"));
-            this->currMode = MODE::EXPERIMENT;
-            this->tlmWrite_CurrentMode(this->currMode);
-            this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::OK);
+            if(this->currBattery > this->SAFE_BATTERY_THRESHOLD) {
+                this->log_ACTIVITY_HI_ModeChanged(this->currMode, MODE::EXPERIMENT, Fw::LogStringArg("cmd"));
+                this->currMode = MODE::EXPERIMENT;
+                this->tlmWrite_CurrentMode(this->currMode);
+                this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::OK);
+            }
+            else {
+                this->log_ACTIVITY_HI_BatteryLow(this->currBattery, this->SAFE_BATTERY_THRESHOLD);
+                this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::EXECUTION_ERROR);
+            }
             break;
 
         default:
@@ -107,10 +104,16 @@ void ModeManager ::ToTransmit_cmdHandler(FwOpcodeType opCode, U32 cmdSeq) {
     // TODO
     switch(this->currMode) {
         case MODE::STANDBY:
-            this->log_ACTIVITY_HI_ModeChanged(this->currMode, MODE::TRANSMIT, Fw::LogStringArg("cmd"));
-            this->currMode = MODE::TRANSMIT;
-            this->tlmWrite_CurrentMode(this->currMode);
-            this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::OK);
+            if(this->currBattery > this->SAFE_BATTERY_THRESHOLD) {
+                this->log_ACTIVITY_HI_ModeChanged(this->currMode, MODE::TRANSMIT, Fw::LogStringArg("cmd"));
+                this->currMode = MODE::TRANSMIT;
+                this->tlmWrite_CurrentMode(this->currMode);
+                this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::OK);
+            }
+            else {
+                this->log_ACTIVITY_HI_InvalidModeChange(this->currMode, MODE::EXPERIMENT, Fw::LogStringArg("cmd"));
+                this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::EXECUTION_ERROR);
+            }
             break;
 
         default:

@@ -1,3 +1,5 @@
 module LionessSw {
-    port GetMode -> MODE
+    port GetMode (
+        ref mode: MODE
+    )
 }
