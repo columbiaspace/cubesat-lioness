@@ -18,7 +18,10 @@ namespace Components {
       ~SunSensor();
 
     private:
-      // Matching the SystemResources signature exactly
+      void calculateSunVector();     // compute 3D sun vector from current photodiode intensities
+      F32 m_diode_readings[6];       // Index Mapping: 0=+X, 1=-X, 2=+Y, 3=-Y, 4=+Z, 5=-Z
+
+      // similar to SystemResources signature
       void run_handler(
           const FwIndexType portNum,
           U32 context
