@@ -69,4 +69,6 @@ module FlatSat {
 
   instance watchdogGpio: Drv.LinuxGpioDriver  base id 0x10016000
 
+  instance sunSensor: Components.SunSensor base id 0x10017000
+
 }
