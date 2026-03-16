@@ -21,13 +21,13 @@ module Components {
 
         event InvalidModeChange(
             prevmode: LionessSw.MODE, newmode: LionessSw.MODE, attemptedBy: string size 20
-        ) severity activity high id 1 format "Invalid Mode Change {} to {} attempted by {}"
+        ) severity warning high id 1 format "Invalid Mode Change {} to {} attempted by {}"
         event BatteryLow(
             currLevel: F32, safeLevel: F32
-        ) severity activity high id 2 format "Warning: Battery Level {}% < {}%, transitioning to SAFE"
+        ) severity warning high id 2 format "Warning: Battery Level {}% < {}%, transitioning to SAFE"
         event HighSpinRate(
             currAcceleration: F32, safeAcceleration: F32
-        ) severity activity high id 3 format "Warning: Spin Rate {} > {}, transitioning to DETUMBLE"
+        ) severity warning high id 3 format "Warning: Spin Rate {} > {}, transitioning to DETUMBLE"
 
         sync input port getMode: LionessSw.GetMode
         sync input port schedIn: Svc.Sched
