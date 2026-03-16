@@ -46,6 +46,12 @@ module FlatSat {
     stack size Default.STACK_SIZE \
     priority 40
 
+  instance modeManager: Components.ModeManager base id 0x10005000 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 45
+
+
   # ----------------------------------------------------------------------
   # Queued component instances
   # ----------------------------------------------------------------------
