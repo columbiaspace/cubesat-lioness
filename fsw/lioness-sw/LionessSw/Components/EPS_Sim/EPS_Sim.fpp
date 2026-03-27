@@ -9,7 +9,6 @@ module Components {
 }
 
 module Components {
-    
     @ Basic simulator for EPS to emulate satellite power
     passive component EPS_Sim {
         sync input port run: Svc.Sched

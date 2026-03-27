@@ -14,7 +14,6 @@ namespace Components {
 
 EPS_Sim ::EPS_Sim(const char* const compName, F32 delta) : EPS_SimComponentBase(compName) {
     this->_delta = delta;
-
 }
 
 EPS_Sim ::~EPS_Sim() {}
@@ -28,8 +27,7 @@ void EPS_Sim ::getBattery_handler(FwIndexType portNum, F32 &batteryLevel) {
 }
 
 void EPS_Sim ::run_handler(FwIndexType portNum, U32 context) {
-    if (_opMode)
-    {
+    if (_opMode) {
         _batteryLevel += _opMode * _delta;
 
         if (_batteryLevel < 0) _batteryLevel = 0;
