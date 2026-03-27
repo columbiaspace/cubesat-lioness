@@ -16,9 +16,9 @@
 
 register_fprime_library(
     AUTOCODER_INPUTS
-        "${CMAKE_CURRENT_LIST_DIR}/Camera.fpp"
+        "${CMAKE_CURRENT_LIST_DIR}/camera.fpp"
     SOURCES
-        "${CMAKE_CURRENT_LIST_DIR}/Camera.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/camera.cpp"
 #   DEPENDS
 #       MyPackage_MyOtherModule
 )
