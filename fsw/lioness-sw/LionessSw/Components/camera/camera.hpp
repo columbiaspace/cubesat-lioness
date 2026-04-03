@@ -26,6 +26,16 @@ class Camera final : public CameraComponentBase {
 
   private:
     // ----------------------------------------------------------------------
+    // Handler implementations for typed input ports
+    // ----------------------------------------------------------------------
+
+    //! Handler implementation for takePicture
+    //!
+    //! Port for star tracker component to take image
+    Fw::String takePicture_handler(FwIndexType portNum  //!< The port number
+                                   ) override;
+                                   
+    // ----------------------------------------------------------------------
     // Handler implementations for commands
     // ----------------------------------------------------------------------
 

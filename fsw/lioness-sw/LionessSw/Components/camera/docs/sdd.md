@@ -17,7 +17,9 @@ Prior to taking a picture, the payload power loadswitch must be activated. Then 
 Add a class diagram here
 
 ## Port Descriptions
-| Name | Description |
+Port Data Type | Name | Direction | Kind | Usage
+-------------- | ---- | --------- | ---- | -----
+TakePicturePort | run | input | synchronous | receives a call to take a picture
 
 
 ## Component States
@@ -33,8 +35,8 @@ Add sequence diagrams here
 
 ## Commands
 | Name | Description |
-|TAKE_IMAGE	|Send "snap" command to the payload com component|
-|SET_CONTINUOUS|Boolean that enables or disables continuous photo taking|
+|TAKE_IMAGE	| Send "snap" command to the payload com component |
+|SET_CONTINUOUS | Boolean that enables or disables continuous photo taking |
 
 ## Events
 | Name | Description |
@@ -44,7 +46,7 @@ Add sequence diagrams here
 ## Telemetry
 | Name | Description |
 |ImagesSaved|Number of images saved|
-|FileErrorCount||
+|FileErrorCount| Number of file write errors |
 
 ## Unit Tests
 Add unit test descriptions in the chart below
@@ -61,4 +63,6 @@ Add requirements in the chart below
 ## Change Log
 | Date | Description |
 |---|---|
-|---| Initial Draft |
+| February 27 2026 | Initial Draft |
+| March 6 2026 | Initial ommands, events, telemetry, and requirements | 
+| March 27 2026 | run port |
