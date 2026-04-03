@@ -229,7 +229,18 @@ int main(const int argc, const char *argv[]) {
     std::cout << "[INFO] YUV420 frame ready: " << frame.width << "x" << frame.height
               << " (" << frame.data.size() << " bytes)\n";
 
-    std::vector<Star> stars = calculate_centroids_cog(frame.data.data(), frame.width, frame.height);
+    const std::vector<Star> unfilteredStars = calculate_centroids_cog(frame.data.data(), frame.width, frame.height);
+
+    std::cout << "[INFO] Unfiltered stars: " << unfilteredStars.size() << "\n";
+
+    // Magnitude filter: discard stars with magnitude less than minMagnitude
+    constexpr int minMagnitude = 5;
+    std::vector<Star> stars;
+    for (const Star &star : unfilteredStars) {
+        if (star.magnitude >= minMagnitude) {
+            stars.push_back(star);
+        }
+    }
 
     std::cout << "[INFO] Stars: " << stars.size() << "\n";
 }
