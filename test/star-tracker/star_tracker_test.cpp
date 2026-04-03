@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <unordered_set>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -11,6 +12,24 @@ struct RawFrame {
     std::vector<uint8_t> data; // Y plane, then U plane, then V plane
     int width = 0;
     int height = 0;
+};
+
+struct Star {
+    double x, y, radiusX, radiusY;
+    int magnitude;
+};
+
+struct CentroidParams {
+    double yCoordMagSum;
+    double xCoordMagSum;
+    long magSum;
+    int xMin;
+    int xMax;
+    int yMin;
+    int yMax;
+    int cutoff;
+    bool isValid;
+    std::unordered_set<long> checkedIndices;
 };
 
 RawFrame load_yuv420_from_png(const std::string &inputFile) {
@@ -37,13 +56,12 @@ RawFrame load_yuv420_from_png(const std::string &inputFile) {
     uint8_t *uPlane = yPlane + ySize;
     uint8_t *vPlane = uPlane + uvSize;
 
-    // Convert RGB to Y plane
+    // Convert RGB to Y plane (BT.709 luminosity)
     for (int i = 0; i < ySize; i++) {
         const uint8_t r = rgb[i * 3 + 0];
         const uint8_t g = rgb[i * 3 + 1];
         const uint8_t b = rgb[i * 3 + 2];
-        const int y = ((66 * r + 129 * g + 25 * b + 128) >> 8) + 16;
-        yPlane[i] = static_cast<uint8_t>(std::clamp(y, 0, 255));
+        yPlane[i] = static_cast<uint8_t>(std::round(r * 0.21 + g * 0.71 + b * 0.07));
     }
 
     // Convert RGB to subsampled U and V planes (2x2 averaging)
@@ -76,7 +94,7 @@ RawFrame load_yuv420_from_png(const std::string &inputFile) {
     return frame;
 }
 
-RawFrame load_yuv420(const std::string &inputFile, int width, int height) {
+RawFrame load_yuv420(const std::string &inputFile, const int width, const int height) {
     std::ifstream ifs(inputFile, std::ios::binary);
     if (!ifs) {
         std::cerr << "[ERROR] Failed to open raw file: " << inputFile << "\n";
@@ -87,8 +105,8 @@ RawFrame load_yuv420(const std::string &inputFile, int width, int height) {
     frame.width = width;
     frame.height = height;
 
-    int ySize = width * height;
-    int uvSize = ((width + 1) / 2) * ((height + 1) / 2);
+    const int ySize = width * height;
+    const int uvSize = ((width + 1) / 2) * ((height + 1) / 2);
     frame.data.resize(ySize + 2 * uvSize);
 
     ifs.read(reinterpret_cast<char *>(frame.data.data()),
@@ -102,7 +120,93 @@ RawFrame load_yuv420(const std::string &inputFile, int width, int height) {
     return frame;
 }
 
-int main(int argc, char *argv[]) {
+// a simple, but well tested thresholding algorithm that works well with star images
+int centroids_basic_threshold(const uint8_t *image, const int imageWidth, const int imageHeight) {
+    unsigned long totalMag = 0;
+    double stdDev = 0;
+    long totalPixels = imageHeight * imageWidth;
+    for (long i = 0; i < totalPixels; i++) {
+        totalMag += image[i];
+    }
+    double mean = static_cast<double>(totalMag) / totalPixels;
+    for (long i = 0; i < totalPixels; i++) {
+        stdDev += std::pow(image[i] - mean, 2);
+    }
+    stdDev = std::sqrt(stdDev / totalPixels);
+    return static_cast<int>(mean + (stdDev * 5));
+}
+
+void centroids_cog_helper(CentroidParams *p, const long i, const uint8_t *image, const int imageWidth, const int imageHeight) {
+    if (i >= 0 && i < imageWidth * imageHeight && image[i] >= p->cutoff && !p->checkedIndices.contains(i)) {
+        //check if pixel is on the edge of the image, if it is, we dont want to centroid this star
+        if (i % imageWidth == 0 || i % imageWidth == imageWidth - 1 || i / imageWidth == 0 || i / imageWidth == imageHeight - 1) {
+            p->isValid = false;
+        }
+        p->checkedIndices.insert(i);
+        if (i % imageWidth > p->xMax) {
+            p->xMax = i % imageWidth;
+        } else if (i % imageWidth < p->xMin) {
+            p->xMin = i % imageWidth;
+        }
+        if (i / imageWidth > p->yMax) {
+            p->yMax = i / imageWidth;
+        } else if (i / imageWidth < p->yMin) {
+            p->yMin = i / imageWidth;
+        }
+        p->magSum += image[i];
+        p->xCoordMagSum += (i % imageWidth) * image[i];
+        p->yCoordMagSum += (i / imageWidth) * image[i]; // NOLINT(*-integer-division)
+        if (i % imageWidth != imageWidth - 1) {
+            centroids_cog_helper(p, i + 1, image, imageWidth, imageHeight);
+        }
+        if (i % imageWidth != 0) {
+            centroids_cog_helper(p, i - 1, image, imageWidth, imageHeight);
+        }
+        centroids_cog_helper(p, i + imageWidth, image, imageWidth, imageHeight);
+        centroids_cog_helper(p, i - imageWidth, image, imageWidth, imageHeight);
+    }
+}
+
+std::vector<Star> calculate_centroids_cog(const uint8_t *image, const int imageWidth, const int imageHeight) {
+    CentroidParams p;
+    std::vector<Star> result;
+
+    p.cutoff = centroids_basic_threshold(image, imageWidth, imageHeight);
+    for (long i = 0; i < imageHeight * imageWidth; i++) {
+        if (image[i] >= p.cutoff && !p.checkedIndices.contains(i)) {
+
+            //iterate over pixels that are part of the star
+            int xDiameter = 0; //radius of current star
+            int yDiameter = 0;
+            p.yCoordMagSum = 0; //y coordinate of current star
+            p.xCoordMagSum = 0; //x coordinate of current star
+            p.magSum = 0; //sum of magnitudes of current star
+
+            p.xMax = i % imageWidth;
+            p.xMin = i % imageWidth;
+            p.yMax = i / imageWidth;
+            p.yMin = i / imageWidth;
+            p.isValid = true;
+
+            const long sizeBefore = p.checkedIndices.size();
+
+            centroids_cog_helper(&p, i, image, imageWidth, imageHeight);
+            xDiameter = (p.xMax - p.xMin) + 1;
+            yDiameter = (p.yMax - p.yMin) + 1;
+
+            //use the sums to finish CoG equation and add stars to the result
+            double xCoord = p.xCoordMagSum / (p.magSum * 1.0);
+            double yCoord = p.yCoordMagSum / (p.magSum * 1.0);
+
+            if (p.isValid) {
+                result.push_back(Star(xCoord + 0.5, yCoord + 0.5, xDiameter / 2.0, yDiameter / 2.0, p.checkedIndices.size() - sizeBefore));
+            }
+        }
+    }
+    return result;
+}
+
+int main(const int argc, const char *argv[]) {
     std::string inputFile = "image.png";
 
     if (argc >= 2) {
@@ -124,4 +228,8 @@ int main(int argc, char *argv[]) {
 
     std::cout << "[INFO] YUV420 frame ready: " << frame.width << "x" << frame.height
               << " (" << frame.data.size() << " bytes)\n";
+
+    std::vector<Star> stars = calculate_centroids_cog(frame.data.data(), frame.width, frame.height);
+
+    std::cout << "[INFO] Stars: " << stars.size() << "\n";
 }
