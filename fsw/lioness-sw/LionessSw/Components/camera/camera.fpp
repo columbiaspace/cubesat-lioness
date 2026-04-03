@@ -1,5 +1,7 @@
 module Components {
-    @ Active component that handles camera photo taking and file saving
+    port TakePicturePort() -> Fw.String
+
+    @ Passive component that handles camera photo taking and file saving
     @ Receives data from PayloadCom, parses image protocol, saves files
     passive component Camera {
 
@@ -20,6 +22,8 @@ module Components {
         telemetry ImagesSaved: U32
 
         # Ports
+        @ Port for star tracker component to take image
+        sync input port takePicture: TakePicturePort
       
         ##############################################################################
         #### Uncomment the following examples to start customizing your component ####
@@ -43,6 +47,7 @@ module Components {
         ###############################################################################
         # Standard AC Ports: Required for Channels, Events, Commands, and Parameters  #
         ###############################################################################
+
         @ Port for requesting the current time
         time get port timeCaller
 

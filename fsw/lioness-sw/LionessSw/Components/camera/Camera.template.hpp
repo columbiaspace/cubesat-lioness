@@ -1,6 +1,6 @@
 // ======================================================================
 // \title  Camera.hpp
-// \author gracexu
+// \author jchen25
 // \brief  hpp file for Camera component implementation class
 // ======================================================================
 
@@ -34,7 +34,8 @@ class Camera final : public CameraComponentBase {
     //! Port for star tracker component to take image
     Fw::String takePicture_handler(FwIndexType portNum  //!< The port number
                                    ) override;
-                                   
+
+  private:
     // ----------------------------------------------------------------------
     // Handler implementations for commands
     // ----------------------------------------------------------------------
