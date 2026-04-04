@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -7,16 +8,12 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#include "star_id.hpp"
 
 struct RawFrame {
     std::vector<uint8_t> data; // Y plane, then U plane, then V plane
     int width = 0;
     int height = 0;
-};
-
-struct Star {
-    double x, y, radiusX, radiusY;
-    int magnitude;
 };
 
 struct CentroidParams {
@@ -32,7 +29,7 @@ struct CentroidParams {
     std::unordered_set<long> checkedIndices;
 };
 
-RawFrame load_yuv420_from_png(const std::string &inputFile) {
+static RawFrame load_yuv420_from_png(const std::string &inputFile) {
     int width, height, channels;
     unsigned char *rgb = stbi_load(inputFile.c_str(), &width, &height, &channels, 3);
     if (!rgb) {
@@ -94,7 +91,7 @@ RawFrame load_yuv420_from_png(const std::string &inputFile) {
     return frame;
 }
 
-RawFrame load_yuv420(const std::string &inputFile, const int width, const int height) {
+static RawFrame load_yuv420(const std::string &inputFile, const int width, const int height) {
     std::ifstream ifs(inputFile, std::ios::binary);
     if (!ifs) {
         std::cerr << "[ERROR] Failed to open raw file: " << inputFile << "\n";
@@ -121,7 +118,7 @@ RawFrame load_yuv420(const std::string &inputFile, const int width, const int he
 }
 
 // a simple, but well tested thresholding algorithm that works well with star images
-int centroids_basic_threshold(const uint8_t *image, const int imageWidth, const int imageHeight) {
+static int centroids_basic_threshold(const uint8_t *image, const int imageWidth, const int imageHeight) {
     unsigned long totalMag = 0;
     double stdDev = 0;
     long totalPixels = imageHeight * imageWidth;
@@ -136,7 +133,7 @@ int centroids_basic_threshold(const uint8_t *image, const int imageWidth, const 
     return static_cast<int>(mean + (stdDev * 5));
 }
 
-void centroids_cog_helper(CentroidParams *p, const long i, const uint8_t *image, const int imageWidth, const int imageHeight) {
+static void centroids_cog_helper(CentroidParams *p, const long i, const uint8_t *image, const int imageWidth, const int imageHeight) {
     if (i >= 0 && i < imageWidth * imageHeight && image[i] >= p->cutoff && !p->checkedIndices.contains(i)) {
         //check if pixel is on the edge of the image, if it is, we dont want to centroid this star
         if (i % imageWidth == 0 || i % imageWidth == imageWidth - 1 || i / imageWidth == 0 || i / imageWidth == imageHeight - 1) {
@@ -167,9 +164,9 @@ void centroids_cog_helper(CentroidParams *p, const long i, const uint8_t *image,
     }
 }
 
-std::vector<Star> calculate_centroids_cog(const uint8_t *image, const int imageWidth, const int imageHeight) {
+static Stars calculate_centroids_cog(const uint8_t *image, const int imageWidth, const int imageHeight) {
     CentroidParams p;
-    std::vector<Star> result;
+    Stars result;
 
     p.cutoff = centroids_basic_threshold(image, imageWidth, imageHeight);
     for (long i = 0; i < imageHeight * imageWidth; i++) {
@@ -208,9 +205,19 @@ std::vector<Star> calculate_centroids_cog(const uint8_t *image, const int imageW
 
 int main(const int argc, const char *argv[]) {
     std::string inputFile = "image.png";
+    std::string databaseFile = "database.dat";
+    double focalLengthMm = 49.0;
+    double pixelSizeUm = 22.2;
 
     if (argc >= 2) {
         inputFile = argv[1];
+    }
+    if (argc >= 3) {
+        databaseFile = argv[2];
+    }
+    if (argc >= 5) {
+        focalLengthMm = std::stod(argv[3]);
+        pixelSizeUm = std::stod(argv[4]);
     }
 
     RawFrame frame;
@@ -218,8 +225,8 @@ int main(const int argc, const char *argv[]) {
         frame = load_yuv420_from_png(inputFile);
     } else if (inputFile.ends_with(".raw")) {
         int width = 1920, height = 1080;
-        if (argc >= 3) width = std::stoi(argv[2]);
-        if (argc >= 4) height = std::stoi(argv[3]);
+        if (argc >= 6) width = std::stoi(argv[5]);
+        if (argc >= 7) height = std::stoi(argv[6]);
         frame = load_yuv420(inputFile, width, height);
     } else {
         std::cerr << "[ERROR] Unsupported file type: " << inputFile << "\n";
@@ -229,13 +236,13 @@ int main(const int argc, const char *argv[]) {
     std::cout << "[INFO] YUV420 frame ready: " << frame.width << "x" << frame.height
               << " (" << frame.data.size() << " bytes)\n";
 
-    const std::vector<Star> unfilteredStars = calculate_centroids_cog(frame.data.data(), frame.width, frame.height);
+    const Stars unfilteredStars = calculate_centroids_cog(frame.data.data(), frame.width, frame.height);
 
     std::cout << "[INFO] Unfiltered stars: " << unfilteredStars.size() << "\n";
 
     // Magnitude filter: discard stars with magnitude less than minMagnitude
     constexpr int minMagnitude = 5;
-    std::vector<Star> stars;
+    Stars stars;
     for (const Star &star : unfilteredStars) {
         if (star.magnitude >= minMagnitude) {
             stars.push_back(star);
@@ -243,4 +250,42 @@ int main(const int argc, const char *argv[]) {
     }
 
     std::cout << "[INFO] Stars: " << stars.size() << "\n";
+
+    std::ifstream dbFile(databaseFile, std::ios::binary | std::ios::ate);
+    if (!dbFile) {
+        std::cerr << "[ERROR] Cannot open database: " << databaseFile << "\n";
+        return EXIT_FAILURE;
+    }
+    std::streampos dbSize = dbFile.tellg();
+    dbFile.seekg(0);
+    std::vector<unsigned char> dbData(dbSize);
+    dbFile.read(reinterpret_cast<char *>(dbData.data()), dbSize);
+    std::cout << "[INFO] Database: " << dbSize << " bytes\n";
+
+    Catalog catalog = star_tracker_load_catalog(dbData.data());
+    std::cout << "[INFO] Catalog: " << catalog.size() << " stars\n";
+
+    // Camera: focal length in pixels = focalLength_mm * 1000 / pixelSize_um
+    double focalLengthPx = focalLengthMm * 1000.0 / pixelSizeUm;
+    Camera camera(focalLengthPx, frame.width, frame.height);
+    std::cout << "[INFO] Focal length: " << focalLengthPx << " px\n";
+
+    // Star identification
+    StarIdentifiers identified = star_tracker_pyramid_star_id(dbData.data(), stars, catalog, camera,
+                                                0.05, 1000, 0.0001, 1000000);
+    std::cout << "[INFO] Identified: " << identified.size() << " stars\n";
+
+    // Attitude estimation
+    if (identified.size() >= 2) {
+        Quaternion q = star_tracker_quest_attitude(camera, stars, catalog, identified);
+        EulerAngles ea = q.ToSpherical();
+        std::cout << "[INFO] Attitude:\n"
+                  << "  RA:   " << RadToDeg(ea.ra)   << " deg\n"
+                  << "  Dec:  " << RadToDeg(ea.de)   << " deg\n"
+                  << "  Roll: " << RadToDeg(ea.roll) << " deg\n";
+    } else {
+        std::cerr << "[WARN] Not enough identified stars for attitude.\n";
+    }
+
+    return 0;
 }
