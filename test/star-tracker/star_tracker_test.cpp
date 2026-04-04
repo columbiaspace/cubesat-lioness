@@ -196,7 +196,7 @@ static Stars calculate_centroids_cog(const uint8_t *image, const int imageWidth,
             double yCoord = p.yCoordMagSum / (p.magSum * 1.0);
 
             if (p.isValid) {
-                result.push_back(Star(xCoord + 0.5, yCoord + 0.5, xDiameter / 2.0, yDiameter / 2.0, p.checkedIndices.size() - sizeBefore));
+                result.emplace_back(xCoord + 0.5, yCoord + 0.5, xDiameter / 2.0, yDiameter / 2.0, p.checkedIndices.size() - sizeBefore);
             }
         }
     }
@@ -209,6 +209,10 @@ int main(const int argc, const char *argv[]) {
     double focalLengthMm = 49.0;
     double pixelSizeUm = 22.2;
 
+    if (argc >= 2 && strcmp(argv[1], "-h") == 0) {
+        std::cout << "Usage: " << argv[0] << " [image.png|image.raw] [database.dat] [focal_length_mm] [pixel_size_um] [width height]\n";
+        return EXIT_SUCCESS;
+    }
     if (argc >= 2) {
         inputFile = argv[1];
     }
@@ -271,8 +275,10 @@ int main(const int argc, const char *argv[]) {
     std::cout << "[INFO] Focal length: " << focalLengthPx << " px\n";
 
     // Star identification
+    double toleranceDeg = 0.05;
+    double toleranceRad = toleranceDeg * M_PI / 180.0;
     StarIdentifiers identified = star_tracker_pyramid_star_id(dbData.data(), stars, catalog, camera,
-                                                0.05, 1000, 0.0001, 1000000);
+                                                toleranceRad, 1000, 0.0001, 1000);
     std::cout << "[INFO] Identified: " << identified.size() << " stars\n";
 
     // Attitude estimation
@@ -287,5 +293,5 @@ int main(const int argc, const char *argv[]) {
         std::cerr << "[WARN] Not enough identified stars for attitude.\n";
     }
 
-    return 0;
+    return EXIT_SUCCESS;
 }
