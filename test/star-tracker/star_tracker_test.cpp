@@ -215,11 +215,15 @@ int main(const int argc, const char *argv[]) {
     std::string databaseFile = "database.dat";
     double focalLengthMm = 49.0;
     double pixelSizeUm = 22.2;
+    double toleranceDeg = 0.05;
+    uint32_t numFalseStars = 1000;
+    double maxMismatchProbability = 0.0001;
+    uint64_t cutoff = 1000;
     int width = 1920;
     int height = 1080;
 
     if (argc >= 2 && strcmp(argv[1], "-h") == 0) {
-        std::cout << "Usage: " << argv[0] << " [image.png|image.raw] [database.dat] [focal_length_mm] [pixel_size_um] [width height]\n";
+        std::cout << "Usage: " << argv[0] << " [image.png|image.raw] [database.dat] [focal_length_mm] [pixel_size_um] [tolerance_deg] [num_false_stars max_mismatch_probability cutoff] [width height]\n";
         return EXIT_SUCCESS;
     }
     if (argc >= 2) {
@@ -232,9 +236,17 @@ int main(const int argc, const char *argv[]) {
         focalLengthMm = std::stod(argv[3]);
         pixelSizeUm = std::stod(argv[4]);
     }
-    if (argc >= 7) {
-        width = std::stoi(argv[5]);
-        height = std::stoi(argv[6]);
+    if (argc >= 6) {
+        toleranceDeg = std::stod(argv[5]);
+    }
+    if (argc >= 9) {
+        numFalseStars = std::stoul(argv[6]);
+        maxMismatchProbability = std::stod(argv[7]);
+        cutoff = std::stoull(argv[8]);
+    }
+    if (argc >= 11) {
+        width = std::stoi(argv[9]);
+        height = std::stoi(argv[10]);
     }
 
     RawFrame frame;
@@ -289,10 +301,9 @@ int main(const int argc, const char *argv[]) {
     std::cout << "[INFO] Focal length: " << focalLengthPx << " px\n";
 
     // Star identification
-    double toleranceDeg = 0.05;
     double toleranceRad = toleranceDeg * M_PI / 180.0;
     StarIdentifiers identified = star_tracker_pyramid_star_id(dbData.data(), stars, catalog, camera,
-                                                toleranceRad, 1000, 0.0001, 1000);
+                                                toleranceRad, numFalseStars, maxMismatchProbability, cutoff);
     std::cout << "[INFO] Identified: " << identified.size() << " stars\n";
 
     // Attitude estimation
