@@ -4,6 +4,12 @@
 #include <cstdint>
 #include <vector>
 
+// Constants for numerical stability
+constexpr double kEpsilon = 1e-15;
+constexpr double kEpsilonSq = kEpsilon * kEpsilon;
+constexpr double kQuestConvergenceTol = 1e-4;
+constexpr int kQuestMaxIter = 50;
+
 struct Vec2 {
     double x, y;
     Vec2 operator-(const Vec2 &o) const { return {x - o.x, y - o.y}; }
@@ -34,6 +40,7 @@ struct Mat3 {
     [[nodiscard]] Mat3 Transpose() const;
     [[nodiscard]] double Trace() const;
     [[nodiscard]] double Det() const;
+    [[nodiscard]] Mat3 Adjugate() const;
     [[nodiscard]] Mat3 Inverse() const;
 };
 

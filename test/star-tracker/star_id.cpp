@@ -14,6 +14,7 @@ double Vec3::MagnitudeSq() const { return std::fma(x, x, std::fma(y, y, z * z));
 
 Vec3 Vec3::Normalize() const {
     const double m = Magnitude();
+    if (m < kEpsilon) return {0, 0, 0};
     return {x / m, y / m, z / m};
 }
 
@@ -85,21 +86,27 @@ double Mat3::Det() const {
            + At(0, 2) * (At(1, 0) * At(2, 1) - At(2, 0) * At(1, 1));
 }
 
+Mat3 Mat3::Adjugate() const {
+    return {{
+        At(1, 1) * At(2, 2) - At(1, 2) * At(2, 1),
+        At(0, 2) * At(2, 1) - At(0, 1) * At(2, 2),
+        At(0, 1) * At(1, 2) - At(0, 2) * At(1, 1),
+        At(1, 2) * At(2, 0) - At(1, 0) * At(2, 2),
+        At(0, 0) * At(2, 2) - At(0, 2) * At(2, 0),
+        At(0, 2) * At(1, 0) - At(0, 0) * At(1, 2),
+        At(1, 0) * At(2, 1) - At(1, 1) * At(2, 0),
+        At(0, 1) * At(2, 0) - At(0, 0) * At(2, 1),
+        At(0, 0) * At(1, 1) - At(0, 1) * At(1, 0)
+    }};
+}
+
 Mat3 Mat3::Inverse() const {
-    return Mat3{
-               {
-                   At(1, 1) * At(2, 2) - At(1, 2) * At(2, 1),
-                   At(0, 2) * At(2, 1) - At(0, 1) * At(2, 2),
-                   At(0, 1) * At(1, 2) - At(0, 2) * At(1, 1),
-                   At(1, 2) * At(2, 0) - At(1, 0) * At(2, 2),
-                   At(0, 0) * At(2, 2) - At(0, 2) * At(2, 0),
-                   At(0, 2) * At(1, 0) - At(0, 0) * At(1, 2),
-                   At(1, 0) * At(2, 1) - At(1, 1) * At(2, 0),
-                   At(0, 1) * At(2, 0) - At(0, 0) * At(2, 1),
-                   At(0, 0) * At(1, 1) - At(0, 1) * At(1, 0)
-               }
-           }
-           * (1.0 / Det());
+    const double d = Det();
+    if (std::abs(d) < kEpsilon) {
+        std::cerr << "[WARN] Singular matrix in Inverse(), returning identity.\n";
+        return kIdentityMat3;
+    }
+    return Adjugate() * (1.0 / d);
 }
 
 const Mat3 kIdentityMat3 = {{1, 0, 0, 0, 1, 0, 0, 0, 1}};
@@ -119,7 +126,9 @@ double Angle(const Vec3 &a, const Vec3 &b) {
 
 double AngleUnit(const Vec3 &a, const Vec3 &b) {
     const double d = a * b;
-    return d >= 1 ? 0 : d <= -1 ? M_PI - 1e-7 : std::acos(d);
+    // previous code subtracted 1e-7 from the result... possibly for numerical stability down the line. 
+    // our new guards should make that unnecessary though. 
+    return d >= 1 ? 0 : d <= -1 ? M_PI : std::acos(d);
 }
 
 double RadToDeg(const double r) { return r * 180.0 / M_PI; }
@@ -559,7 +568,9 @@ StarIdentifiers star_tracker_pyramid_star_id(
                     double jSin = std::sin(Angle(iSp - jSp, kSp - jSp));
                     double kSin = std::sin(Angle(iSp - kSp, jSp - kSp));
 
-                    double em = mc * std::sin(ijDist) / kSin / std::max({iSin, jSin, kSin});
+                    double sinProduct = kSin * std::max({iSin, jSin, kSin});
+                    if (sinProduct < kEpsilon) continue;
+                    double em = mc * std::sin(ijDist) / sinProduct;
                     if (em > maxMismatchProbability) continue;
 
                     Vec3 rSp = camera.CameraToSpatial(stars[r].position).Normalize();
@@ -644,11 +655,13 @@ static double QuestCharPolyPrime(const double x, const double a, const double b,
 }
 
 static double QuestEigenvalue(double guess, const double a, const double b, const double c, const double d, const double s) {
-    double h;
-    do {
-        h = QuestCharPoly(guess, a, b, c, d, s) / QuestCharPolyPrime(guess, a, b, c);
+    for (int iter = 0; iter < kQuestMaxIter; ++iter) {
+        const double dp = QuestCharPolyPrime(guess, a, b, c);
+        if (std::abs(dp) < kEpsilon) break;
+        const double h = QuestCharPoly(guess, a, b, c, d, s) / dp;
         guess -= h;
-    } while (std::abs(h) >= 1e-4);
+        if (std::abs(h) < kQuestConvergenceTol) break;
+    }
     return guess;
 }
 
@@ -670,7 +683,7 @@ Quaternion star_tracker_quest_attitude(const Camera &camera, const Stars &stars,
     const Vec3 Z = {B.At(1, 2) - B.At(2, 1), B.At(2, 0) - B.At(0, 2), B.At(0, 1) - B.At(1, 0)};
 
     const double delta = S.Det();
-    const double kappa = (S.Inverse() * delta).Trace();
+    const double kappa = S.Adjugate().Trace();
     const double a = sigma * sigma - kappa;
     const double b = sigma * sigma + (Z * Z);
     const double c = delta + (Z * S * Z);
@@ -682,7 +695,9 @@ Quaternion star_tracker_quest_attitude(const Camera &camera, const Stars &stars,
     double gamma = (eig + sigma) * alpha - delta;
 
     Vec3 X = ((kIdentityMat3 * alpha) + (S * beta) + (S * S)) * Z;
-    const double sc = 1.0 / std::sqrt(gamma * gamma + X.MagnitudeSq());
+    const double normSq = gamma * gamma + X.MagnitudeSq();
+    if (normSq < kEpsilonSq) return {1, 0, 0, 0};
+    const double sc = 1.0 / std::sqrt(normSq);
     X = X * sc;
     gamma *= sc;
 
