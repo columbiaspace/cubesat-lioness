@@ -659,7 +659,7 @@ Quaternion star_tracker_quest_attitude(const Camera &camera, const Stars &stars,
     double guess = 0;
     Mat3 B = {{0, 0, 0, 0, 0, 0, 0, 0, 0}};
     for (const auto &s: ids) {
-        Vec3 bi = camera.CameraToSpatial(stars[s.starIndex].position);
+        Vec3 bi = camera.CameraToSpatial(stars[s.starIndex].position).Normalize();
         Vec3 ri = catalog[s.catalogIndex].spatial;
         B = B + (ri.OuterProduct(bi) * s.weight);
         guess += s.weight;
