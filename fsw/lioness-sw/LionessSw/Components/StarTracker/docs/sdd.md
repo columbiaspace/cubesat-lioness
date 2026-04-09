@@ -1,4 +1,4 @@
-# LionessSw::StarTracker
+# Components::StarTracker
 
 Processes images into star vectors and satellite orientation
 

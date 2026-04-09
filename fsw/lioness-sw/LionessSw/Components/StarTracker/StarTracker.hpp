@@ -4,12 +4,12 @@
 // \brief  hpp file for StarTracker component implementation class
 // ======================================================================
 
-#ifndef LionessSw_StarTracker_HPP
-#define LionessSw_StarTracker_HPP
+#ifndef Components_StarTracker_HPP
+#define Components_StarTracker_HPP
 
 #include "LionessSw/Components/StarTracker/StarTrackerComponentAc.hpp"
 
-namespace LionessSw {
+namespace Components {
 
 class StarTracker final : public StarTrackerComponentBase {
   public:
@@ -25,6 +25,6 @@ class StarTracker final : public StarTrackerComponentBase {
     ~StarTracker();
 };
 
-}  // namespace LionessSw
+}  // namespace Components
 
 #endif

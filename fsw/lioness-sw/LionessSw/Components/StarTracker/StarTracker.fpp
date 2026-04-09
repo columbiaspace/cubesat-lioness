@@ -1,4 +1,4 @@
-module LionessSw {
+module Components {
     @ Processes images into star vectors and satellite orientation
     passive component StarTracker {
 

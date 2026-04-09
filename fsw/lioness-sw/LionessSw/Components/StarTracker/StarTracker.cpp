@@ -6,7 +6,7 @@
 
 #include "LionessSw/Components/StarTracker/StarTracker.hpp"
 
-namespace LionessSw {
+namespace Components {
 
 // ----------------------------------------------------------------------
 // Component construction and destruction
@@ -16,4 +16,4 @@ StarTracker ::StarTracker(const char* const compName) : StarTrackerComponentBase
 
 StarTracker ::~StarTracker() {}
 
-}  // namespace LionessSw
+}  // namespace Components
