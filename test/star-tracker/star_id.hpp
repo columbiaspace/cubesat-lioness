@@ -1,6 +1,7 @@
 #ifndef STAR_ID_HPP
 #define STAR_ID_HPP
 
+#include <cstdint>
 #include <vector>
 
 struct Vec2 {
@@ -25,7 +26,7 @@ struct Vec3 {
 
 struct Mat3 {
     double x[9];
-    [[nodiscard]] double At(int i, int j) const;
+    [[nodiscard]] double At(uint8_t i, uint8_t j) const;
     Mat3 operator+(const Mat3 &o) const;
     Mat3 operator*(const Mat3 &o) const;
     Vec3 operator*(const Vec3 &v) const;
@@ -52,20 +53,21 @@ double RadToDeg(double r);
 struct Star {
     Vec2 position;
     double radiusX, radiusY;
-    int magnitude;
+    uint32_t magnitude;
     Star();
-    Star(double x, double y, double rx, double ry, int mag);
+    Star(double x, double y, double rx, double ry, uint32_t mag);
 };
 
 struct CatalogStar {
     Vec3 spatial;
-    int name;
+    int16_t name;
 };
 
 struct StarIdentifier {
-    int starIndex, catalogIndex;
+    int32_t starIndex;
+    int16_t catalogIndex;
     double weight;
-    StarIdentifier(int si, int ci, double w = 1.0);
+    StarIdentifier(int32_t si, int16_t ci, double w = 1.0);
 };
 
 using Catalog = std::vector<CatalogStar>;
@@ -73,7 +75,7 @@ using Stars = std::vector<Star>;
 using StarIdentifiers = std::vector<StarIdentifier>;
 
 struct Camera {
-    Camera(double focalLength, int xRes, int yRes);
+    Camera(double focalLength, uint16_t xRes, uint16_t yRes);
     [[nodiscard]] Vec3 CameraToSpatial(const Vec2 &v) const;
 private:
     double fl_, cx_, cy_;
@@ -83,8 +85,8 @@ Catalog star_tracker_load_catalog(const unsigned char *dbData);
 
 StarIdentifiers star_tracker_pyramid_star_id(
     const unsigned char *database, const Stars &stars, const Catalog &catalog,
-    const Camera &camera, double tolerance, int numFalseStars,
-    double maxMismatchProbability, long cutoff);
+    const Camera &camera, double tolerance, uint32_t numFalseStars,
+    double maxMismatchProbability, uint64_t cutoff);
 
 Quaternion star_tracker_quest_attitude(const Camera &camera, const Stars &stars,
                          const Catalog &catalog, const StarIdentifiers &ids);

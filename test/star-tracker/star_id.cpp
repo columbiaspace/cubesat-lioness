@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <iostream>
 #include <limits>
@@ -36,7 +37,7 @@ Vec3 Vec3::operator*(const Mat3 &o) const {
     };
 }
 
-double Mat3::At(int i, int j) const { return x[3 * i + j]; }
+double Mat3::At(uint8_t i, uint8_t j) const { return x[3 * i + j]; }
 
 Mat3 Mat3::operator+(const Mat3 &o) const {
     return {
@@ -131,15 +132,15 @@ static double DecimalModulo(double x, double mod) {
 Star::Star() : position({0, 0}), radiusX(0), radiusY(0), magnitude(0) {
 }
 
-Star::Star(const double x, const double y, const double rx, const double ry, const int mag)
+Star::Star(const double x, const double y, const double rx, const double ry, const uint32_t mag)
     : position({x, y}), radiusX(rx), radiusY(ry), magnitude(mag) {
 }
 
-StarIdentifier::StarIdentifier(const int si, const int ci, const double w)
+StarIdentifier::StarIdentifier(const int32_t si, const int16_t ci, const double w)
     : starIndex(si), catalogIndex(ci), weight(w) {
 }
 
-Camera::Camera(double focalLength, int xRes, int yRes)
+Camera::Camera(double focalLength, uint16_t xRes, uint16_t yRes)
     : fl_(focalLength), cx_(xRes / 2.0), cy_(yRes / 2.0) {
 }
 
@@ -220,12 +221,17 @@ static Vec3 star_tracker_deserialize_vec3(DeserializeContext *des) {
 
 static Catalog star_tracker_deserialize_catalog(DeserializeContext *des) {
     auto numStars = star_tracker_deserialize_primitive<int16_t>(des);
+    if (numStars < 0) {
+        std::cerr << "[ERROR] Invalid catalog size: " << numStars << "\n";
+        std::exit(1);
+    }
+
     auto flags = star_tracker_deserialize_primitive<int8_t>(des);
     bool inclMag = flags & 1;
     bool inclName = (flags >> 1) & 1;
     Catalog result;
     result.reserve(numStars);
-    for (int i = 0; i < numStars; i++) {
+    for (int16_t i = 0; i < numStars; i++) {
         CatalogStar s;
         s.spatial = star_tracker_deserialize_vec3(des);
         if (inclMag) star_tracker_deserialize_primitive<double>(des);
@@ -257,30 +263,30 @@ public:
         bins_ = star_tracker_deserialize_array<int32_t>(des, numBins_ + 1);
     }
 
-    long QueryLiberal(double minQ, double maxQ, long *upperIdx) const {
+    int32_t QueryLiberal(double minQ, double maxQ, int32_t *upperIdx) const {
         if (maxQ >= max_) maxQ = max_ - 1e-5;
         if (minQ <= min_) minQ = min_ + 1e-5;
         if (minQ > max_ || maxQ < min_) {
             *upperIdx = 0;
             return 0;
         }
-        const long lo = BinFor(minQ), hi = BinFor(maxQ);
-        const long lower = bins_[lo - 1];
+        const int32_t lo = BinFor(minQ), hi = BinFor(maxQ);
+        const int32_t lower = bins_[lo - 1];
         if (lower >= numValues_) return 0;
         *upperIdx = bins_[hi];
         return lower;
     }
 
-    [[nodiscard]] long NumValues() const { return numValues_; }
+    [[nodiscard]] int32_t NumValues() const { return numValues_; }
     [[nodiscard]] double Min() const { return min_; }
     [[nodiscard]] double Max() const { return max_; }
 
 private:
-    [[nodiscard]] long BinFor(const double q) const {
-        return std::clamp(static_cast<long>(std::ceil((q - min_) / binWidth_)), 0L, numBins_);
+    [[nodiscard]] int32_t BinFor(const double q) const {
+        return std::clamp(static_cast<int32_t>(std::ceil((q - min_) / binWidth_)), 0, numBins_);
     }
 
-    long numValues_, numBins_;
+    int32_t numValues_, numBins_;
     double min_, max_, binWidth_;
     const int32_t *bins_;
 };
@@ -293,16 +299,16 @@ public:
         : index_(des) { pairs_ = star_tracker_deserialize_array<int16_t>(des, 2 * index_.NumValues()); }
 
     const int16_t *FindPairsLiberal(double minD, double maxD, const int16_t **end) const {
-        long upper = -1;
-        long lower = index_.QueryLiberal(minD, maxD, &upper);
+        int32_t upper = -1;
+        int32_t lower = index_.QueryLiberal(minD, maxD, &upper);
         *end = &pairs_[upper * 2];
         return &pairs_[lower * 2];
     }
 
     const int16_t *FindPairsExact(const Catalog &catalog, double minD, double maxD, const int16_t **end) const {
         double maxCos = std::cos(minD), minCos = std::cos(maxD);
-        long liberalUpper;
-        long liberalLower = index_.QueryLiberal(minD, maxD, &liberalUpper);
+        int32_t liberalUpper;
+        int32_t liberalLower = index_.QueryLiberal(minD, maxD, &liberalUpper);
         while (liberalLower < liberalUpper &&
                catalog[pairs_[liberalLower * 2]].spatial * catalog[pairs_[liberalLower * 2 + 1]].spatial >= maxCos)
             liberalLower++;
@@ -377,10 +383,10 @@ class IRUnidentifiedCentroid {
 public:
     double bestAngleFrom90;
     StarIdentifier bestStar1, bestStar2;
-    int16_t index;
+    int32_t index;
     const Star *star;
 
-    IRUnidentifiedCentroid(const Star &s, int16_t idx)
+    IRUnidentifiedCentroid(const Star &s, int32_t idx)
         : bestAngleFrom90(std::numeric_limits<double>::max()),
           bestStar1(0, 0), bestStar2(0, 0), index(idx), star(&s) {
     }
@@ -422,7 +428,7 @@ static void AddToAllUnidentifiedCentroids(
     std::vector<IRUnidentifiedCentroid *> *above,
     std::vector<IRUnidentifiedCentroid *> *below,
     double minDist, double maxDist, double threshold, const Camera &camera) {
-    std::vector<int16_t> nowBelow;
+    std::vector<int32_t> nowBelow;
     for (auto it: FindUnidentifiedCentroidsInRange(above, stars[starId.starIndex], camera, minDist, maxDist)) {
         (*it)->AddIdentifiedStar(starId, stars);
         if ((*it)->bestAngleFrom90 <= threshold) {
@@ -456,7 +462,7 @@ static IRUnidentifiedCentroid *SelectNextUnidentifiedCentroid(
     return nullptr;
 }
 
-static int IdentifyRemainingStarsPairDistance(
+static int32_t IdentifyRemainingStarsPairDistance(
     StarIdentifiers *identifiers, const Stars &stars,
     const PairDistanceKVectorDatabase &db, const Catalog &catalog,
     const Camera &camera, double tolerance) {
@@ -464,7 +470,7 @@ static int IdentifyRemainingStarsPairDistance(
     std::vector<IRUnidentifiedCentroid *> above, below;
     all.reserve(stars.size());
     for (size_t i = 0; i < stars.size(); i++)
-        all.emplace_back(stars[i], static_cast<int16_t>(i));
+        all.emplace_back(stars[i], static_cast<int32_t>(i));
 
     above.reserve(all.size());
     for (size_t i = 0; i < all.size(); i++) {
@@ -481,7 +487,7 @@ static int IdentifyRemainingStarsPairDistance(
         AddToAllUnidentifiedCentroids(id, stars, &above, &below,
                                       db.MinDistance(), db.MaxDistance(), M_PI_4, camera);
 
-    int extra = 0;
+    int32_t extra = 0;
     while (!below.empty() || !above.empty()) {
         auto *next = SelectNextUnidentifiedCentroid(&above, &below);
         if (!next) break;
@@ -510,8 +516,8 @@ static int IdentifyRemainingStarsPairDistance(
 
 StarIdentifiers star_tracker_pyramid_star_id(
     const unsigned char *database, const Stars &stars, const Catalog &catalog,
-    const Camera &camera, double tolerance, int numFalseStars,
-    double maxMismatchProbability, long cutoff) {
+    const Camera &camera, double tolerance, uint32_t numFalseStars,
+    double maxMismatchProbability, uint64_t cutoff) {
     StarIdentifiers identified;
     MultiDatabase multiDb(database);
     const unsigned char *dbBuf = multiDb.SubDatabasePointer(PairDistanceKVectorDatabase::kMagicValue);
@@ -523,26 +529,26 @@ StarIdentifiers star_tracker_pyramid_star_id(
     PairDistanceKVectorDatabase db(&des);
 
     double mc = std::pow(numFalseStars, 4) * std::pow(tolerance, 5) / 2.0 / (M_PI * M_PI);
-    int n = static_cast<int>(stars.size());
-    int across = static_cast<int>(std::floor(std::sqrt(n))) * 2;
-    int half = static_cast<int>(std::floor(std::sqrt(n) / 2));
-    long iters = 0;
+    int32_t n = static_cast<int32_t>(stars.size());
+    int32_t across = static_cast<int32_t>(std::floor(std::sqrt(n))) * 2;
+    int32_t half = static_cast<int32_t>(std::floor(std::sqrt(n) / 2));
+    uint64_t iters = 0;
 
-    for (int jI = 0; jI < n - 3; jI++) {
-        int dj = 1 + (jI + half) % (n - 3);
-        for (int kI = 0; kI < n - dj - 2; kI++) {
-            int dk = 1 + (kI + across) % (n - dj - 2);
-            for (int rI = 0; rI < n - dj - dk - 1; rI++) {
-                int dr = 1 + (rI + half) % (n - dj - dk - 1);
-                int iMax = n - dj - dk - dr - 1;
-                for (int iI = 0; iI <= iMax; iI++) {
-                    int i = (iI + iMax / 2) % (iMax + 1);
+    for (int32_t jI = 0; jI < n - 3; jI++) {
+        int32_t dj = 1 + (jI + half) % (n - 3);
+        for (int32_t kI = 0; kI < n - dj - 2; kI++) {
+            int32_t dk = 1 + (kI + across) % (n - dj - 2);
+            for (int32_t rI = 0; rI < n - dj - dk - 1; rI++) {
+                int32_t dr = 1 + (rI + half) % (n - dj - dk - 1);
+                int32_t iMax = n - dj - dk - dr - 1;
+                for (int32_t iI = 0; iI <= iMax; iI++) {
+                    int32_t i = (iI + iMax / 2) % (iMax + 1);
                     if (++iters > cutoff) {
                         std::cerr << "[WARN] Cutoff reached.\n";
                         return identified;
                     }
 
-                    int j = i + dj, k = j + dk, r = k + dr;
+                    int32_t j = i + dj, k = j + dk, r = k + dr;
                     Vec3 iSp = camera.CameraToSpatial(stars[i].position).Normalize();
                     Vec3 jSp = camera.CameraToSpatial(stars[j].position).Normalize();
                     Vec3 kSp = camera.CameraToSpatial(stars[k].position).Normalize();
@@ -579,19 +585,19 @@ StarIdentifiers star_tracker_pyramid_star_id(
                     auto ikMap = PairDistanceQueryToMap(ikQ, ikEnd);
                     auto irMap = PairDistanceQueryToMap(irQ, irEnd);
 
-                    int iM = -1, jM = -1, kM = -1, rM = -1;
+                    int16_t iM = -1, jM = -1, kM = -1, rM = -1;
                     for (const int16_t *q = ijQ; q != ijEnd; q++) {
-                        int iC = *q, jC = (q - ijQ) % 2 == 0 ? q[1] : q[-1];
+                        int16_t iC = *q, jC = (q - ijQ) % 2 == 0 ? q[1] : q[-1];
                         Vec3 ijCross = catalog[iC].spatial.CrossProduct(catalog[jC].spatial);
 
-                        for (auto kIt = ikMap.equal_range(iC); kIt.first != kIt.second; kIt.first++) {
-                            int kC = kIt.first->second;
+                        for (auto kIt = ikMap.equal_range(iC); kIt.first != kIt.second; ++kIt.first) {
+                            int16_t kC = kIt.first->second;
                             if ((ijCross * catalog[kC].spatial > 0) != spectral) continue;
                             double jkC = AngleUnit(catalog[jC].spatial, catalog[kC].spatial);
                             if (jkC < jkDist - tolerance || jkC > jkDist + tolerance) continue;
 
-                            for (auto rIt = irMap.equal_range(iC); rIt.first != rIt.second; rIt.first++) {
-                                int rC = rIt.first->second;
+                            for (auto rIt = irMap.equal_range(iC); rIt.first != rIt.second; ++rIt.first) {
+                                int16_t rC = rIt.first->second;
                                 double jrC = AngleUnit(catalog[jC].spatial, catalog[rC].spatial);
                                 if (jrC < jrDist - tolerance || jrC > jrDist + tolerance) continue;
                                 double krC = AngleUnit(catalog[kC].spatial, catalog[rC].spatial);
@@ -614,7 +620,7 @@ StarIdentifiers star_tracker_pyramid_star_id(
                         identified.emplace_back(j, jM);
                         identified.emplace_back(k, kM);
                         identified.emplace_back(r, rM);
-                        int extra = IdentifyRemainingStarsPairDistance(&identified, stars, db, catalog, camera,
+                        int32_t extra = IdentifyRemainingStarsPairDistance(&identified, stars, db, catalog, camera,
                                                                        tolerance);
                         std::cout << "[INFO] Identified " << extra << " additional stars.\n";
                         return identified;
