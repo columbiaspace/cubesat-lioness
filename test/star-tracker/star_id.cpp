@@ -118,14 +118,14 @@ double Angle(const Vec3 &a, const Vec3 &b) {
 }
 
 double AngleUnit(const Vec3 &a, const Vec3 &b) {
-    double d = a * b;
+    const double d = a * b;
     return d >= 1 ? 0 : d <= -1 ? M_PI - 1e-7 : std::acos(d);
 }
 
-double RadToDeg(double r) { return r * 180.0 / M_PI; }
+double RadToDeg(const double r) { return r * 180.0 / M_PI; }
 
-static double DecimalModulo(double x, double mod) {
-    double r = x - mod * std::floor(x / mod);
+static double DecimalModulo(const double x, const double mod) {
+    const double r = x - mod * std::floor(x / mod);
     return r >= 0 ? r : r + mod;
 }
 
@@ -140,7 +140,7 @@ StarIdentifier::StarIdentifier(const int32_t si, const int16_t ci, const double 
     : starIndex(si), catalogIndex(ci), weight(w) {
 }
 
-Camera::Camera(double focalLength, uint16_t xRes, uint16_t yRes)
+Camera::Camera(const double focalLength, const uint16_t xRes, const uint16_t yRes)
     : fl_(focalLength), cx_(xRes / 2.0), cy_(yRes / 2.0) {
 }
 
@@ -150,16 +150,16 @@ Vec3 Camera::CameraToSpatial(const Vec2 &v) const {
 
 class DeserializeContext {
 public:
-    explicit DeserializeContext(const unsigned char *buf) : buffer_(buf), cursor_(buf) {
+    explicit DeserializeContext(const uint8_t *buf) : buffer_(buf), cursor_(buf) {
     }
 
     [[nodiscard]] size_t GetOffset() const { return static_cast<size_t>(cursor_ - buffer_); }
     void MoveForward(const size_t n) { cursor_ += n; }
-    [[nodiscard]] const unsigned char *GetCursor() const { return cursor_; }
+    [[nodiscard]] const uint8_t *GetCursor() const { return cursor_; }
 
 private:
-    const unsigned char *buffer_;
-    const unsigned char *cursor_;
+    const uint8_t *buffer_;
+    const uint8_t *cursor_;
 };
 
 template<typename T>
@@ -188,10 +188,10 @@ static constexpr int32_t kCatalogMagicValue = static_cast<int32_t>(0xF9A283BC);
 
 class MultiDatabase {
 public:
-    explicit MultiDatabase(const unsigned char *buf) : buffer_(buf) {
+    explicit MultiDatabase(const uint8_t *buf) : buffer_(buf) {
     }
 
-    [[nodiscard]] const unsigned char *SubDatabasePointer(int32_t magicValue) const {
+    [[nodiscard]] const uint8_t *SubDatabasePointer(const int32_t magicValue) const {
         DeserializeContext des(buffer_);
         while (true) {
             auto cur = star_tracker_deserialize_primitive<int32_t>(&des);
@@ -201,34 +201,34 @@ public:
                 std::cerr << "[ERROR] Database built in float mode, expected double.\n";
                 std::exit(1);
             }
-            auto len = star_tracker_deserialize_primitive<uint32_t>(&des);
+            const auto len = star_tracker_deserialize_primitive<uint32_t>(&des);
             star_tracker_deserialize_padding<uint64_t>(&des);
-            const auto *data = star_tracker_deserialize_array<unsigned char>(&des, len);
+            const auto *data = star_tracker_deserialize_array<uint8_t>(&des, len);
             if (cur == magicValue) return data;
         }
     }
 
 private:
-    const unsigned char *buffer_;
+    const uint8_t *buffer_;
 };
 
 static Vec3 star_tracker_deserialize_vec3(DeserializeContext *des) {
-    double x = star_tracker_deserialize_primitive<double>(des);
-    double y = star_tracker_deserialize_primitive<double>(des);
-    double z = star_tracker_deserialize_primitive<double>(des);
+    const auto x = star_tracker_deserialize_primitive<double>(des);
+    const auto y = star_tracker_deserialize_primitive<double>(des);
+    const auto z = star_tracker_deserialize_primitive<double>(des);
     return {x, y, z};
 }
 
 static Catalog star_tracker_deserialize_catalog(DeserializeContext *des) {
-    auto numStars = star_tracker_deserialize_primitive<int16_t>(des);
+    const auto numStars = star_tracker_deserialize_primitive<int16_t>(des);
     if (numStars < 0) {
         std::cerr << "[ERROR] Invalid catalog size: " << numStars << "\n";
         std::exit(1);
     }
 
-    auto flags = star_tracker_deserialize_primitive<int8_t>(des);
-    bool inclMag = flags & 1;
-    bool inclName = (flags >> 1) & 1;
+    const auto flags = star_tracker_deserialize_primitive<int8_t>(des);
+    const bool inclMag = flags & 1;
+    const bool inclName = (flags >> 1) & 1;
     Catalog result;
     result.reserve(numStars);
     for (int16_t i = 0; i < numStars; i++) {
@@ -241,9 +241,9 @@ static Catalog star_tracker_deserialize_catalog(DeserializeContext *des) {
     return result;
 }
 
-Catalog star_tracker_load_catalog(const unsigned char *dbData) {
-    MultiDatabase multiDb(dbData);
-    const unsigned char *catBuf = multiDb.SubDatabasePointer(kCatalogMagicValue);
+Catalog star_tracker_load_catalog(const uint8_t *dbData) {
+    const MultiDatabase multiDb(dbData);
+    const uint8_t *catBuf = multiDb.SubDatabasePointer(kCatalogMagicValue);
     if (!catBuf) {
         std::cerr << "[ERROR] No catalog in database.\n";
         std::exit(1);
@@ -298,15 +298,15 @@ public:
     explicit PairDistanceKVectorDatabase(DeserializeContext *des)
         : index_(des) { pairs_ = star_tracker_deserialize_array<int16_t>(des, 2 * index_.NumValues()); }
 
-    const int16_t *FindPairsLiberal(double minD, double maxD, const int16_t **end) const {
+    const int16_t *FindPairsLiberal(const double minD, const double maxD, const int16_t **end) const {
         int32_t upper = -1;
-        int32_t lower = index_.QueryLiberal(minD, maxD, &upper);
+        const int32_t lower = index_.QueryLiberal(minD, maxD, &upper);
         *end = &pairs_[upper * 2];
         return &pairs_[lower * 2];
     }
 
-    const int16_t *FindPairsExact(const Catalog &catalog, double minD, double maxD, const int16_t **end) const {
-        double maxCos = std::cos(minD), minCos = std::cos(maxD);
+    const int16_t *FindPairsExact(const Catalog &catalog, const double minD, const double maxD, const int16_t **end) const {
+        const double maxCos = std::cos(minD), minCos = std::cos(maxD);
         int32_t liberalUpper;
         int32_t liberalLower = index_.QueryLiberal(minD, maxD, &liberalUpper);
         while (liberalLower < liberalUpper &&
@@ -320,8 +320,8 @@ public:
         return &pairs_[liberalLower * 2];
     }
 
-    double MinDistance() const { return index_.Min(); }
-    double MaxDistance() const { return index_.Max(); }
+    [[nodiscard]] double MinDistance() const { return index_.Min(); }
+    [[nodiscard]] double MaxDistance() const { return index_.Max(); }
 
 private:
     KVectorIndex index_;
@@ -363,15 +363,15 @@ private:
 
 static std::vector<int16_t>
 IdentifyThirdStar(const PairDistanceKVectorDatabase &db, const Catalog &catalog,
-                  int16_t catIdx1, int16_t catIdx2,
-                  double dist1, double dist2, double tolerance) {
+                  const int16_t catIdx1, const int16_t catIdx2,
+                  const double dist1, const double dist2, const double tolerance) {
     const int16_t *q1End;
     const int16_t *q1 = db.FindPairsExact(catalog, dist1 - tolerance, dist1 + tolerance, &q1End);
-    Vec3 cross = catalog[catIdx1].spatial.CrossProduct(catalog[catIdx2].spatial);
+    const Vec3 cross = catalog[catIdx1].spatial.CrossProduct(catalog[catIdx2].spatial);
     std::vector<int16_t> result;
     for (PairDistanceInvolvingIterator it(q1, q1End, catIdx1); it.HasValue(); ++it) {
         Vec3 cand = catalog[*it].spatial;
-        double a2 = AngleUnit(cand, catalog[catIdx2].spatial);
+        const double a2 = AngleUnit(cand, catalog[catIdx2].spatial);
         if (a2 < dist2 - tolerance || a2 > dist2 + tolerance) continue;
         if (cross * cand <= 0) continue;
         result.push_back(*it);
@@ -386,16 +386,16 @@ public:
     int32_t index;
     const Star *star;
 
-    IRUnidentifiedCentroid(const Star &s, int32_t idx)
+    IRUnidentifiedCentroid(const Star &s, const int32_t idx)
         : bestAngleFrom90(std::numeric_limits<double>::max()),
           bestStar1(0, 0), bestStar2(0, 0), index(idx), star(&s) {
     }
 
     void AddIdentifiedStar(const StarIdentifier &starId, const Stars &stars) {
-        Vec2 diff = stars[starId.starIndex].position - star->position;
+        const Vec2 diff = stars[starId.starIndex].position - star->position;
         double angle = std::atan2(diff.y, diff.x);
         for (const auto &[otherAngle, otherId]: identifiedStarsInRange_) {
-            double a90 = std::abs(DecimalModulo(otherAngle - angle, M_PI) - M_PI_2);
+            const double a90 = std::abs(DecimalModulo(otherAngle - angle, M_PI) - M_PI_2);
             if (a90 < bestAngleFrom90) {
                 bestAngleFrom90 = a90;
                 bestStar1 = starId;
@@ -412,12 +412,12 @@ private:
 static std::vector<std::vector<IRUnidentifiedCentroid *>::iterator>
 FindUnidentifiedCentroidsInRange(std::vector<IRUnidentifiedCentroid *> *centroids,
                                  const Star &star, const Camera &camera,
-                                 double minDist, double maxDist) {
-    Vec3 ourSpatial = camera.CameraToSpatial(star.position).Normalize();
-    double minCos = std::cos(maxDist), maxCos = std::cos(minDist);
+                                 const double minDist, const double maxDist) {
+    const Vec3 ourSpatial = camera.CameraToSpatial(star.position).Normalize();
+    const double minCos = std::cos(maxDist), maxCos = std::cos(minDist);
     std::vector<std::vector<IRUnidentifiedCentroid *>::iterator> result;
     for (auto it = centroids->begin(); it != centroids->end(); ++it) {
-        double c = ourSpatial * camera.CameraToSpatial((*it)->star->position).Normalize();
+        const double c = ourSpatial * camera.CameraToSpatial((*it)->star->position).Normalize();
         if (c >= minCos && c <= maxCos) result.push_back(it);
     }
     return result;
@@ -427,7 +427,7 @@ static void AddToAllUnidentifiedCentroids(
     const StarIdentifier &starId, const Stars &stars,
     std::vector<IRUnidentifiedCentroid *> *above,
     std::vector<IRUnidentifiedCentroid *> *below,
-    double minDist, double maxDist, double threshold, const Camera &camera) {
+    const double minDist, const double maxDist, const double threshold, const Camera &camera) {
     std::vector<int32_t> nowBelow;
     for (auto it: FindUnidentifiedCentroidsInRange(above, stars[starId.starIndex], camera, minDist, maxDist)) {
         (*it)->AddIdentifiedStar(starId, stars);
@@ -436,26 +436,26 @@ static void AddToAllUnidentifiedCentroids(
             nowBelow.push_back((*it)->index);
         }
     }
-    above->erase(std::remove_if(above->begin(), above->end(),
-                                [&](const IRUnidentifiedCentroid *c) {
-                                    return std::find(nowBelow.begin(), nowBelow.end(), c->index) != nowBelow.end();
-                                }), above->end());
+    std::erase_if(*above,
+                  [&](const IRUnidentifiedCentroid *c) {
+                      return std::ranges::find(nowBelow, c->index) != nowBelow.end();
+                  });
 }
 
 static IRUnidentifiedCentroid *SelectNextUnidentifiedCentroid(
     std::vector<IRUnidentifiedCentroid *> *above,
     std::vector<IRUnidentifiedCentroid *> *below) {
     if (!below->empty()) {
-        auto r = below->back();
+        const auto r = below->back();
         below->pop_back();
         return r;
     }
-    auto best = std::min_element(above->begin(), above->end(),
-                                 [](const IRUnidentifiedCentroid *a, const IRUnidentifiedCentroid *b) {
-                                     return a->bestAngleFrom90 < b->bestAngleFrom90;
-                                 });
+    const auto best = std::ranges::min_element(*above,
+                                               [](const IRUnidentifiedCentroid *a, const IRUnidentifiedCentroid *b) {
+                                                   return a->bestAngleFrom90 < b->bestAngleFrom90;
+                                               });
     if (best != above->end() && (*best)->bestAngleFrom90 < 10) {
-        auto r = *best;
+        const auto r = *best;
         above->erase(best);
         return r;
     }
@@ -465,22 +465,23 @@ static IRUnidentifiedCentroid *SelectNextUnidentifiedCentroid(
 static int32_t IdentifyRemainingStarsPairDistance(
     StarIdentifiers *identifiers, const Stars &stars,
     const PairDistanceKVectorDatabase &db, const Catalog &catalog,
-    const Camera &camera, double tolerance) {
+    const Camera &camera, const double tolerance) {
     std::vector<IRUnidentifiedCentroid> all;
     std::vector<IRUnidentifiedCentroid *> above, below;
     all.reserve(stars.size());
-    for (size_t i = 0; i < stars.size(); i++)
+    for (size_t i = 0; i < stars.size(); i++) {
         all.emplace_back(stars[i], static_cast<int32_t>(i));
+    }
 
     above.reserve(all.size());
-    for (size_t i = 0; i < all.size(); i++) {
+    for (auto &c: all) {
         bool found = false;
         for (const auto &id: *identifiers)
-            if (id.starIndex == all[i].index) {
+            if (id.starIndex == c.index) {
                 found = true;
                 break;
             }
-        if (!found) above.push_back(&all[i]);
+        if (!found) above.push_back(&c);
     }
 
     for (const auto &id: *identifiers)
@@ -495,8 +496,8 @@ static int32_t IdentifyRemainingStarsPairDistance(
         Vec3 unSp = camera.CameraToSpatial(next->star->position);
         Vec3 sp1 = camera.CameraToSpatial(stars[next->bestStar1.starIndex].position);
         Vec3 sp2 = camera.CameraToSpatial(stars[next->bestStar2.starIndex].position);
-        double d1 = Angle(sp1, unSp), d2 = Angle(sp2, unSp);
-        double spectral = sp1.CrossProduct(sp2) * unSp;
+        const double d1 = Angle(sp1, unSp), d2 = Angle(sp2, unSp);
+        const double spectral = sp1.CrossProduct(sp2) * unSp;
 
         auto candidates = spectral > 0
                               ? IdentifyThirdStar(db, catalog, next->bestStar1.catalogIndex,
@@ -515,12 +516,12 @@ static int32_t IdentifyRemainingStarsPairDistance(
 }
 
 StarIdentifiers star_tracker_pyramid_star_id(
-    const unsigned char *database, const Stars &stars, const Catalog &catalog,
+    const uint8_t *database, const Stars &stars, const Catalog &catalog,
     const Camera &camera, double tolerance, uint32_t numFalseStars,
     double maxMismatchProbability, uint64_t cutoff) {
     StarIdentifiers identified;
     MultiDatabase multiDb(database);
-    const unsigned char *dbBuf = multiDb.SubDatabasePointer(PairDistanceKVectorDatabase::kMagicValue);
+    const uint8_t *dbBuf = multiDb.SubDatabasePointer(PairDistanceKVectorDatabase::kMagicValue);
     if (!dbBuf || stars.size() < 4) {
         std::cerr << "[WARN] Not enough stars or database missing.\n";
         return identified;
@@ -634,15 +635,15 @@ StarIdentifiers star_tracker_pyramid_star_id(
     return identified;
 }
 
-static double QuestCharPoly(double x, double a, double b, double c, double d, double s) {
+static double QuestCharPoly(const double x, const double a, const double b, const double c, const double d, const double s) {
     return (x * x - a) * (x * x - b) - c * x + c * s - d;
 }
 
-static double QuestCharPolyPrime(double x, double a, double b, double c) {
+static double QuestCharPolyPrime(const double x, const double a, const double b, const double c) {
     return 4 * x * x * x - 2 * (a + b) * x - c;
 }
 
-static double QuestEigenvalue(double guess, double a, double b, double c, double d, double s) {
+static double QuestEigenvalue(double guess, const double a, const double b, const double c, const double d, const double s) {
     double h;
     do {
         h = QuestCharPoly(guess, a, b, c, d, s) / QuestCharPolyPrime(guess, a, b, c);
@@ -664,24 +665,24 @@ Quaternion star_tracker_quest_attitude(const Camera &camera, const Stars &stars,
         guess += s.weight;
     }
 
-    Mat3 S = B + B.Transpose();
-    double sigma = B.Trace();
-    Vec3 Z = {B.At(1, 2) - B.At(2, 1), B.At(2, 0) - B.At(0, 2), B.At(0, 1) - B.At(1, 0)};
+    const Mat3 S = B + B.Transpose();
+    const double sigma = B.Trace();
+    const Vec3 Z = {B.At(1, 2) - B.At(2, 1), B.At(2, 0) - B.At(0, 2), B.At(0, 1) - B.At(1, 0)};
 
-    double delta = S.Det();
-    double kappa = (S.Inverse() * delta).Trace();
-    double a = sigma * sigma - kappa;
-    double b = sigma * sigma + (Z * Z);
-    double c = delta + (Z * S * Z);
-    double d = Z * (S * S) * Z;
+    const double delta = S.Det();
+    const double kappa = (S.Inverse() * delta).Trace();
+    const double a = sigma * sigma - kappa;
+    const double b = sigma * sigma + (Z * Z);
+    const double c = delta + (Z * S * Z);
+    const double d = Z * (S * S) * Z;
 
-    double eig = QuestEigenvalue(guess, a, b, c, d, sigma);
-    double alpha = eig * eig - sigma * sigma + kappa;
-    double beta = eig - sigma;
+    const double eig = QuestEigenvalue(guess, a, b, c, d, sigma);
+    const double alpha = eig * eig - sigma * sigma + kappa;
+    const double beta = eig - sigma;
     double gamma = (eig + sigma) * alpha - delta;
 
     Vec3 X = ((kIdentityMat3 * alpha) + (S * beta) + (S * S)) * Z;
-    double sc = 1.0 / std::sqrt(gamma * gamma + X.MagnitudeSq());
+    const double sc = 1.0 / std::sqrt(gamma * gamma + X.MagnitudeSq());
     X = X * sc;
     gamma *= sc;
 

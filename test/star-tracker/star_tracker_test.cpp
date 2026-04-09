@@ -8,6 +8,7 @@
 #include <unordered_set>
 
 #define STB_IMAGE_IMPLEMENTATION
+#define STBI_ONLY_PNG
 #include "stb_image.h"
 #include "star_id.hpp"
 
@@ -32,7 +33,7 @@ struct CentroidParams {
 
 static RawFrame load_yuv420_from_png(const std::string &inputFile) {
     int width, height, channels;
-    unsigned char *rgb = stbi_load(inputFile.c_str(), &width, &height, &channels, 3);
+    uint8_t *rgb = stbi_load(inputFile.c_str(), &width, &height, &channels, 3);
     if (!rgb) {
         std::cerr << "[ERROR] Failed to load PNG: " << inputFile << "\n";
         std::exit(1);
@@ -275,7 +276,7 @@ int main(const int argc, const char *argv[]) {
     }
     std::streampos dbSize = dbFile.tellg();
     dbFile.seekg(0);
-    std::vector<unsigned char> dbData(dbSize);
+    std::vector<uint8_t> dbData(dbSize);
     dbFile.read(reinterpret_cast<char *>(dbData.data()), dbSize);
     std::cout << "[INFO] Database: " << dbSize << " bytes\n";
 
