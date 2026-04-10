@@ -7,7 +7,7 @@
 #ifndef Components_Camera_HPP
 #define Components_Camera_HPP
 
-#include "LionessSw/Components/camera/CameraComponentAc.hpp"
+#include "LionessSw/Components/Camera/CameraComponentAc.hpp"
 
 namespace Components {
 
@@ -34,22 +34,6 @@ class Camera final : public CameraComponentBase {
     //! Port for star tracker component to take image
     Fw::String takePicture_handler(FwIndexType portNum  //!< The port number
                                    ) override;
-                                   
-    // ----------------------------------------------------------------------
-    // Handler implementations for commands
-    // ----------------------------------------------------------------------
-
-    //! Handler implementation for command TAKE_IMAGE
-    //!
-    //! Type in "snap" to capture an image
-    void TAKE_IMAGE_cmdHandler(FwOpcodeType opCode,  //!< The opcode
-                               U32 cmdSeq            //!< The command sequence number
-                               ) override;
-
-    //! Handler implementation for command SET_CONTINUOUS
-    void SET_CONTINUOUS_cmdHandler(FwOpcodeType opCode,  //!< The opcode
-                                   U32 cmdSeq,           //!< The command sequence number
-                                   bool continuous) override;
 };
 
 }  // namespace Components
