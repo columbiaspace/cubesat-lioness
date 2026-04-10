@@ -1,22 +1,15 @@
 module Components {
     port TakePicturePort() -> Fw.String
+    port SendPicturePort() -> Fw.String
 
-    @ Passive component that handles camera photo taking and file saving
-    @ Receives data from PayloadCom, parses image protocol, saves files
+    @ Passive component that handles camera photo taking 
+    @ Receives data from PayloadCom, parses image protocol, returns image
     passive component Camera {
 
-        # Commands
-        @ Type in "snap" to capture an image
-        sync command TAKE_IMAGE()
+        # Events
 
-        sync command SET_CONTINUOUS(
-            $continuous: bool
-        )
-
-        event FileWriteError() severity warning high format "File write error occurred during image transfer"
-
-        @ Total number of file errors encountered
-        telemetry FileErrorCount: U32
+        @ Confirms that image data was saved successfully
+        event ImagesSuccessful() severity activity high format "Image successfully taken"
 
         @ Total number of images successfully saved
         telemetry ImagesSaved: U32
@@ -25,6 +18,9 @@ module Components {
         @ Port for star tracker component to take image
         sync input port takePicture: TakePicturePort
       
+        @ Port for image to be returned
+        output port sendPicture: SendPicturePort
+
         ##############################################################################
         #### Uncomment the following examples to start customizing your component ####
         ##############################################################################
