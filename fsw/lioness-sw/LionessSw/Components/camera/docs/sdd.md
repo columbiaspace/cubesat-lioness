@@ -1,17 +1,16 @@
 # Camera::camera
 
-Passive component that handles camera specific payload capabilities.
+Component that handles camera specific payload capabilities.
 
-Taking and Saving Images
+Taking Images
 
 ## Usage Examples
-The camera handler can be commanded to take an image. It will take the image and save it to a file. 
+Component recieves call to an image and sends the image back to another component to be saved.
 
 ### Diagrams
 Add diagrams here
 
 ### Typical Usage
-Prior to taking a picture, the payload power loadswitch must be activated. Then "PING" the camera with the ping command. If the PING command returns successfully, then the camera is ready to take an image.
 
 ## Class Diagram
 Add a class diagram here
@@ -20,6 +19,7 @@ Add a class diagram here
 Port Data Type | Name | Direction | Kind | Usage
 -------------- | ---- | --------- | ---- | -----
 TakePicturePort | run | input | synchronous | receives a call to take a picture
+SendPicturePort | return | output | synchronous | returns the image buffer 
 
 
 ## Component States
@@ -35,18 +35,14 @@ Add sequence diagrams here
 
 ## Commands
 | Name | Description |
-|TAKE_IMAGE	| Send "snap" command to the payload com component |
-|SET_CONTINUOUS | Boolean that enables or disables continuous photo taking |
 
 ## Events
 | Name | Description |
-|SaveSucessful|Confirm that image was sucessfully taken and saved|
-|FileWriteError|Error when writing file|
+|ImageSucessful|Confirm that image was sucessfully taken|
 
 ## Telemetry
 | Name | Description |
-|ImagesSaved|Number of images saved|
-|FileErrorCount| Number of file write errors |
+|ImagesTaken |Number of images taken|
 
 ## Unit Tests
 Add unit test descriptions in the chart below
@@ -57,8 +53,8 @@ Add unit test descriptions in the chart below
 ## Requirements
 Add requirements in the chart below
 | Name | Description | Validation |
-|Camera-001|The Camera has a command to take an image.|Manual Test|
-|Camera-002|The Camera saves image data bytes to a new file.|Manual Test|
+|Camera-001|The Camera recieves call to take photo|
+|Camera-002|The Camera returns the image through its output port|
 
 ## Change Log
 | Date | Description |
@@ -66,3 +62,4 @@ Add requirements in the chart below
 | February 27 2026 | Initial Draft |
 | March 6 2026 | Initial ommands, events, telemetry, and requirements | 
 | March 27 2026 | run port |
+| April 10 2026 | change the component functionality | 
