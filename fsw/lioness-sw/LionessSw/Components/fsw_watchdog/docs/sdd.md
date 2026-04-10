@@ -1,9 +1,6 @@
-# Components::StarTracker
+# FSW_Watchdog::fsw_watchdog
 
-Processes images into star vectors and satellite orientation
-
-## Star Tracker
-https://github.com/UWCubeSat/lost
+Watchdog circuit for fsw
 
 ## Usage Examples
 Add usage examples here

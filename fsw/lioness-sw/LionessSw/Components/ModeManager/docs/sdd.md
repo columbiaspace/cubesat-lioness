@@ -1,9 +1,6 @@
-# Components::StarTracker
+# Components::ModeManager
 
-Processes images into star vectors and satellite orientation
-
-## Star Tracker
-https://github.com/UWCubeSat/lost
+Logic that switches the satellite in and out of different modes
 
 ## Usage Examples
 Add usage examples here
