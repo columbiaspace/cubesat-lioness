@@ -138,14 +138,14 @@ static double DecimalModulo(const double x, const double mod) {
     return r >= 0 ? r : r + mod;
 }
 
-Star::Star() : position({0, 0}), radiusX(0), radiusY(0), magnitude(0) {
+Star::Star() : position({0, 0}), magnitude(0) {
 }
 
-Star::Star(const double x, const double y, const double rx, const double ry, const uint32_t mag)
-    : position({x, y}), radiusX(rx), radiusY(ry), magnitude(mag) {
+Star::Star(const double x, const double y, const uint32_t mag)
+    : position({x, y}), magnitude(mag) {
 }
 
-StarIdentifier::StarIdentifier(const int32_t si, const int16_t ci, const double w)
+StarIdentifier::StarIdentifier(const uint8_t si, const int16_t ci, const double w)
     : starIndex(si), catalogIndex(ci), weight(w) {
 }
 
@@ -392,10 +392,10 @@ class IRUnidentifiedCentroid {
 public:
     double bestAngleFrom90;
     StarIdentifier bestStar1, bestStar2;
-    int32_t index;
+    uint8_t index;
     const Star *star;
 
-    IRUnidentifiedCentroid(const Star &s, const int32_t idx)
+    IRUnidentifiedCentroid(const Star &s, const uint8_t idx)
         : bestAngleFrom90(std::numeric_limits<double>::max()),
           bestStar1(0, 0), bestStar2(0, 0), index(idx), star(&s) {
     }
@@ -437,7 +437,7 @@ static void AddToAllUnidentifiedCentroids(
     std::vector<IRUnidentifiedCentroid *> *above,
     std::vector<IRUnidentifiedCentroid *> *below,
     const double minDist, const double maxDist, const double threshold, const Camera &camera) {
-    std::vector<int32_t> nowBelow;
+    std::vector<uint8_t> nowBelow;
     for (auto it: FindUnidentifiedCentroidsInRange(above, stars[starId.starIndex], camera, minDist, maxDist)) {
         (*it)->AddIdentifiedStar(starId, stars);
         if ((*it)->bestAngleFrom90 <= threshold) {
@@ -478,8 +478,8 @@ static int32_t IdentifyRemainingStarsPairDistance(
     std::vector<IRUnidentifiedCentroid> all;
     std::vector<IRUnidentifiedCentroid *> above, below;
     all.reserve(stars.size());
-    for (size_t i = 0; i < stars.size(); i++) {
-        all.emplace_back(stars[i], static_cast<int32_t>(i));
+    for (uint8_t i = 0; i < stars.size(); i++) {
+        all.emplace_back(stars[i], i);
     }
 
     above.reserve(all.size());
@@ -539,7 +539,7 @@ StarIdentifiers star_tracker_pyramid_star_id(
     PairDistanceKVectorDatabase db(&des);
 
     double mc = std::pow(numFalseStars, 4) * std::pow(tolerance, 5) / 2.0 / (M_PI * M_PI);
-    int32_t n = static_cast<int32_t>(stars.size());
+    int32_t n = stars.size();
     int32_t across = static_cast<int32_t>(std::floor(std::sqrt(n))) * 2;
     int32_t half = static_cast<int32_t>(std::floor(std::sqrt(n) / 2));
     uint64_t iters = 0;

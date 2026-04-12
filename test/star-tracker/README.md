@@ -24,7 +24,7 @@ By default, the program expects a `image.png` or `image.raw` (in YUV420 format) 
 
 Example usage:
 ```shell
-./star_tracker_test image.png database.dat 49.0 22.2 0.05 1000 0.0001 1000 1920 1080
+./star_tracker_test image.png database.dat 5 49.0 22.2 0.05 1000 0.0001 1000 1920 1080
 ```
 
 

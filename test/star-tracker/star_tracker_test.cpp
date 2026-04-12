@@ -171,9 +171,8 @@ static void centroids_cog_helper(CentroidParams *p, const uint32_t i, const uint
     }
 }
 
-static Stars calculate_centroids_cog(const uint8_t *image, const uint16_t imageWidth, const uint16_t imageHeight) {
+static void calculate_centroids_cog(Stars &stars, const uint8_t *image, const uint16_t imageWidth, const uint16_t imageHeight, const uint32_t minMagnitude) {
     CentroidParams p;
-    Stars result;
 
     p.cutoff = centroids_basic_threshold(image, imageWidth, imageHeight);
     for (uint32_t i = 0; i < static_cast<uint32_t>(imageHeight) * imageWidth; i++) {
@@ -199,15 +198,28 @@ static Stars calculate_centroids_cog(const uint8_t *image, const uint16_t imageW
             yDiameter = (p.yMax - p.yMin) + 1;
 
             //use the sums to finish CoG equation and add stars to the result
-            double xCoord = p.xCoordMagSum / (p.magSum * 1.0);
-            double yCoord = p.yCoordMagSum / (p.magSum * 1.0);
+            const double xCoord = p.xCoordMagSum / (p.magSum * 1.0);
+            const double yCoord = p.yCoordMagSum / (p.magSum * 1.0);
 
             if (p.isValid) {
-                result.emplace_back(xCoord + 0.5, yCoord + 0.5, xDiameter / 2.0, yDiameter / 2.0, p.checkedIndices.size() - sizeBefore);
+                const auto magnitude = static_cast<uint32_t>(p.checkedIndices.size() - sizeBefore);
+                if (magnitude >= minMagnitude) {
+                    if (stars.count < kMaxStars) {
+                        stars[stars.count++] = {xCoord + 0.5, yCoord + 0.5, magnitude};
+                    } else {
+                        uint8_t dimmest = 0;
+                        for (uint8_t s = 1; s < stars.count; s++) {
+                            if (stars[s].magnitude < stars[dimmest].magnitude)
+                                dimmest = s;
+                        }
+                        if (magnitude > stars[dimmest].magnitude) {
+                            stars[dimmest] = {xCoord + 0.5, yCoord + 0.5, magnitude};
+                        }
+                    }
+                }
             }
         }
     }
-    return result;
 }
 
 int main(const int argc, const char *argv[]) {
@@ -215,6 +227,7 @@ int main(const int argc, const char *argv[]) {
     std::string databaseFile = "database.dat";
     double focalLengthMm = 49.0;
     double pixelSizeUm = 22.2;
+    uint32_t minMagnitude = 5;
     double toleranceDeg = 0.05;
     uint32_t numFalseStars = 1000;
     double maxMismatchProbability = 0.0001;
@@ -223,7 +236,7 @@ int main(const int argc, const char *argv[]) {
     int height = 1080;
 
     if (argc >= 2 && strcmp(argv[1], "-h") == 0) {
-        std::cout << "Usage: " << argv[0] << " [image.png|image.raw] [database.dat] [focal_length_mm] [pixel_size_um] [tolerance_deg] [num_false_stars max_mismatch_probability cutoff] [width height]\n";
+        std::cout << "Usage: " << argv[0] << " [image.png|image.raw] [database.dat] [min_magnitude] [focal_length_mm] [pixel_size_um] [tolerance_deg] [num_false_stars max_mismatch_probability cutoff] [width height]\n";
         return EXIT_SUCCESS;
     }
     if (argc >= 2) {
@@ -232,21 +245,24 @@ int main(const int argc, const char *argv[]) {
     if (argc >= 3) {
         databaseFile = argv[2];
     }
-    if (argc >= 5) {
-        focalLengthMm = std::stod(argv[3]);
-        pixelSizeUm = std::stod(argv[4]);
+    if (argc >= 4) {
+        minMagnitude = std::stoi(argv[3]);
     }
     if (argc >= 6) {
-        toleranceDeg = std::stod(argv[5]);
+        focalLengthMm = std::stod(argv[4]);
+        pixelSizeUm = std::stod(argv[5]);
     }
-    if (argc >= 9) {
-        numFalseStars = std::stoul(argv[6]);
-        maxMismatchProbability = std::stod(argv[7]);
-        cutoff = std::stoull(argv[8]);
+    if (argc >= 7) {
+        toleranceDeg = std::stod(argv[6]);
     }
-    if (argc >= 11) {
-        width = std::stoi(argv[9]);
-        height = std::stoi(argv[10]);
+    if (argc >= 10) {
+        numFalseStars = std::stoul(argv[7]);
+        maxMismatchProbability = std::stod(argv[8]);
+        cutoff = std::stoull(argv[9]);
+    }
+    if (argc >= 12) {
+        width = std::stoi(argv[10]);
+        height = std::stoi(argv[11]);
     }
 
     RawFrame frame;
@@ -266,19 +282,8 @@ int main(const int argc, const char *argv[]) {
     std::cout << "[INFO] YUV420 frame ready: " << frame.width << "x" << frame.height
               << " (" << frame.data.size() << " bytes)\n";
 
-    const Stars unfilteredStars = calculate_centroids_cog(frame.data.data(), frame.width, frame.height);
-
-    std::cout << "[INFO] Unfiltered stars: " << unfilteredStars.size() << "\n";
-
-    // Magnitude filter: discard stars with magnitude less than minMagnitude
-    constexpr uint32_t minMagnitude = 5;
     Stars stars;
-    for (const Star &star : unfilteredStars) {
-        if (star.magnitude >= minMagnitude) {
-            stars.push_back(star);
-        }
-    }
-
+    calculate_centroids_cog(stars, frame.data.data(), frame.width, frame.height, minMagnitude);
     std::cout << "[INFO] Stars: " << stars.size() << "\n";
 
     std::ifstream dbFile(databaseFile, std::ios::binary | std::ios::ate);

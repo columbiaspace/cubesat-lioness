@@ -59,10 +59,19 @@ double RadToDeg(double r);
 
 struct Star {
     Vec2 position;
-    double radiusX, radiusY;
     uint32_t magnitude;
     Star();
-    Star(double x, double y, double rx, double ry, uint32_t mag);
+    Star(double x, double y, uint32_t mag);
+};
+
+constexpr uint8_t kMaxStars = 40;
+
+struct Stars {
+    Star data[kMaxStars] = {};
+    uint8_t count = 0;
+    const Star &operator[](const uint8_t i) const { return data[i]; }
+    Star &operator[](const uint8_t i) { return data[i]; }
+    [[nodiscard]] uint8_t size() const { return count; }
 };
 
 struct CatalogStar {
@@ -71,14 +80,13 @@ struct CatalogStar {
 };
 
 struct StarIdentifier {
-    int32_t starIndex;
+    uint8_t starIndex;
     int16_t catalogIndex;
     double weight;
-    StarIdentifier(int32_t si, int16_t ci, double w = 1.0);
+    StarIdentifier(uint8_t si, int16_t ci, double w = 1.0);
 };
 
 using Catalog = std::vector<CatalogStar>;
-using Stars = std::vector<Star>;
 using StarIdentifiers = std::vector<StarIdentifier>;
 
 struct Camera {
@@ -88,10 +96,10 @@ private:
     double fl_, cx_, cy_;
 };
 
-Catalog star_tracker_load_catalog(const unsigned char *dbData);
+Catalog star_tracker_load_catalog(const uint8_t *dbData);
 
 StarIdentifiers star_tracker_pyramid_star_id(
-    const unsigned char *database, const Stars &stars, const Catalog &catalog,
+    const uint8_t *database, const Stars &stars, const Catalog &catalog,
     const Camera &camera, double tolerance, uint32_t numFalseStars,
     double maxMismatchProbability, uint64_t cutoff);
 
