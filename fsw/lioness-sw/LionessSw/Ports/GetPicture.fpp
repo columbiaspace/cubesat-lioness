@@ -1,3 +1,3 @@
 module LionessSw {
-    port GetPicture() -> Fw::Buffer
+    port GetPicture() -> Fw.Buffer
 }
