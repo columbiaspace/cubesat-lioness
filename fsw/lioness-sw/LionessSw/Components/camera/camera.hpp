@@ -1,5 +1,5 @@
 // ======================================================================
-// \title  Camera.hpp
+// \title  camera.hpp
 // \author gracexu
 // \brief  hpp file for Camera component implementation class
 // ======================================================================
@@ -7,7 +7,7 @@
 #ifndef Components_Camera_HPP
 #define Components_Camera_HPP
 
-#include "LionessSw/Components/Camera/CameraComponentAc.hpp"
+#include "LionessSw/Components/camera/CameraComponentAc.hpp"
 
 namespace Components {
 

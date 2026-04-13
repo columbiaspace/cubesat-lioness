@@ -1,5 +1,5 @@
 // ======================================================================
-// \title  Camera.cpp
+// \title  camera.cpp
 // \author gracexu
 // \brief  cpp file for Camera component implementation class
 // ======================================================================
