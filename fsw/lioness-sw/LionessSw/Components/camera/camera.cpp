@@ -4,8 +4,8 @@
 // \brief  cpp file for Camera component implementation class
 // ======================================================================
 
-#include "LionessSw/Components/Camera/Camera.hpp"
 
+#include "LionessSw/Components/camera/camera.hpp"
 namespace Components {
 
 // ----------------------------------------------------------------------
