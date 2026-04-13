@@ -28,7 +28,6 @@ struct CentroidParams {
     uint16_t yMax;
     uint8_t cutoff;
     bool isValid;
-    std::unordered_set<uint32_t> checkedIndices;
 };
 
 static RawFrame load_yuv420_from_png(const std::string &inputFile) {
@@ -137,16 +136,17 @@ static uint8_t centroids_basic_threshold(const uint8_t *image, const uint16_t im
         stdDev += std::pow(image[i] - mean, 2);
     }
     stdDev = std::sqrt(stdDev / totalPixels);
-    return static_cast<uint8_t>(std::clamp(mean + (stdDev * 5), 0.0, 255.0));
+    return static_cast<uint8_t>(std::clamp(mean + (stdDev * 5), 1.0, 255.0));
 }
 
-static void centroids_cog_helper(CentroidParams *p, const uint32_t i, const uint8_t *image, const uint16_t imageWidth, const uint16_t imageHeight) {
-    if (i < static_cast<uint32_t>(imageWidth) * imageHeight && image[i] >= p->cutoff && !p->checkedIndices.contains(i)) {
+static uint32_t centroids_cog_helper(CentroidParams *p, const uint32_t i, uint8_t *image, const uint16_t imageWidth, const uint16_t imageHeight) {
+    uint32_t magnitude = 0;
+
+    if (i < static_cast<uint32_t>(imageWidth) * imageHeight && image[i] >= p->cutoff) {
         //check if pixel is on the edge of the image, if it is, we dont want to centroid this star
         if (i % imageWidth == 0 || i % imageWidth == imageWidth - 1 || i / imageWidth == 0 || i / imageWidth == imageHeight - 1) {
             p->isValid = false;
         }
-        p->checkedIndices.insert(i);
         if (i % imageWidth > p->xMax) {
             p->xMax = i % imageWidth;
         } else if (i % imageWidth < p->xMin) {
@@ -160,27 +160,36 @@ static void centroids_cog_helper(CentroidParams *p, const uint32_t i, const uint
         p->magSum += image[i];
         p->xCoordMagSum += (i % imageWidth) * image[i];
         p->yCoordMagSum += (i / imageWidth) * image[i]; // NOLINT(*-integer-division)
+
+        // mark pixel as processed
+        image[i] = 0;
+        magnitude++;
+
         if (i % imageWidth != imageWidth - 1) {
-            centroids_cog_helper(p, i + 1, image, imageWidth, imageHeight);
+            magnitude += centroids_cog_helper(p, i + 1, image, imageWidth, imageHeight);
         }
         if (i % imageWidth != 0) {
-            centroids_cog_helper(p, i - 1, image, imageWidth, imageHeight);
+            magnitude += centroids_cog_helper(p, i - 1, image, imageWidth, imageHeight);
         }
-        centroids_cog_helper(p, i + imageWidth, image, imageWidth, imageHeight);
-        centroids_cog_helper(p, i - imageWidth, image, imageWidth, imageHeight);
+        if (i / imageWidth < imageHeight - 1) {
+            magnitude += centroids_cog_helper(p, i + imageWidth, image, imageWidth, imageHeight);
+        }
+        if (i / imageWidth > 0) {
+            magnitude += centroids_cog_helper(p, i - imageWidth, image, imageWidth, imageHeight);
+        }
     }
+
+    return magnitude;
 }
 
-static void calculate_centroids_cog(Stars &stars, const uint8_t *image, const uint16_t imageWidth, const uint16_t imageHeight, const uint32_t minMagnitude) {
-    CentroidParams p;
+static void calculate_centroids_cog(Stars &stars, uint8_t *image, const uint16_t imageWidth, const uint16_t imageHeight, const uint32_t minMagnitude) {
+    CentroidParams p = {};
 
     p.cutoff = centroids_basic_threshold(image, imageWidth, imageHeight);
     for (uint32_t i = 0; i < static_cast<uint32_t>(imageHeight) * imageWidth; i++) {
-        if (image[i] >= p.cutoff && !p.checkedIndices.contains(i)) {
+        if (image[i] >= p.cutoff) {
 
             //iterate over pixels that are part of the star
-            uint16_t xDiameter = 0; //radius of current star
-            uint16_t yDiameter = 0;
             p.yCoordMagSum = 0; //y coordinate of current star
             p.xCoordMagSum = 0; //x coordinate of current star
             p.magSum = 0; //sum of magnitudes of current star
@@ -191,18 +200,13 @@ static void calculate_centroids_cog(Stars &stars, const uint8_t *image, const ui
             p.yMin = i / imageWidth;
             p.isValid = true;
 
-            const uint32_t sizeBefore = p.checkedIndices.size();
-
-            centroids_cog_helper(&p, i, image, imageWidth, imageHeight);
-            xDiameter = (p.xMax - p.xMin) + 1;
-            yDiameter = (p.yMax - p.yMin) + 1;
+            const auto magnitude = centroids_cog_helper(&p, i, image, imageWidth, imageHeight);
 
             //use the sums to finish CoG equation and add stars to the result
             const double xCoord = p.xCoordMagSum / (p.magSum * 1.0);
             const double yCoord = p.yCoordMagSum / (p.magSum * 1.0);
 
             if (p.isValid) {
-                const auto magnitude = static_cast<uint32_t>(p.checkedIndices.size() - sizeBefore);
                 if (magnitude >= minMagnitude) {
                     if (stars.count < kMaxStars) {
                         stars[stars.count++] = {xCoord + 0.5, yCoord + 0.5, magnitude};
