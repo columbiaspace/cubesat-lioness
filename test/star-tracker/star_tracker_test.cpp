@@ -5,7 +5,6 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <unordered_set>
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_PNG
@@ -301,8 +300,9 @@ int main(const int argc, const char *argv[]) {
     dbFile.read(reinterpret_cast<char *>(dbData.data()), dbSize);
     std::cout << "[INFO] Database: " << dbSize << " bytes\n";
 
-    Catalog catalog = star_tracker_load_catalog(dbData.data());
-    std::cout << "[INFO] Catalog: " << catalog.size() << " stars\n";
+    auto *catalog = new Catalog();
+    star_tracker_load_catalog(dbData.data(), *catalog);
+    std::cout << "[INFO] Catalog: " << catalog->size() << " stars\n";
 
     // Camera: focal length in pixels = focalLength_mm * 1000 / pixelSize_um
     double focalLengthPx = focalLengthMm * 1000.0 / pixelSizeUm;
@@ -311,13 +311,13 @@ int main(const int argc, const char *argv[]) {
 
     // Star identification
     double toleranceRad = toleranceDeg * M_PI / 180.0;
-    StarIdentifiers identified = star_tracker_pyramid_star_id(dbData.data(), stars, catalog, camera,
+    StarIdentifiers identified = star_tracker_pyramid_star_id(dbData.data(), stars, *catalog, camera,
                                                 toleranceRad, numFalseStars, maxMismatchProbability, cutoff);
     std::cout << "[INFO] Identified: " << identified.size() << " stars\n";
 
     // Attitude estimation
     if (identified.size() >= 2) {
-        Quaternion q = star_tracker_quest_attitude(camera, stars, catalog, identified);
+        Quaternion q = star_tracker_quest_attitude(camera, stars, *catalog, identified);
         EulerAngles ea = q.ToSpherical();
         std::cout << "[INFO] Attitude:\n"
                   << "  RA:   " << RadToDeg(ea.ra)   << " deg\n"
@@ -326,6 +326,8 @@ int main(const int argc, const char *argv[]) {
     } else {
         std::cerr << "[WARN] Not enough identified stars for attitude.\n";
     }
+
+    delete catalog;
 
     return EXIT_SUCCESS;
 }

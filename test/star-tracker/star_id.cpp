@@ -8,6 +8,7 @@
 #include <limits>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 double Vec3::Magnitude() const { return std::hypot(std::hypot(x, y), z); }
 double Vec3::MagnitudeSq() const { return std::fma(x, x, std::fma(y, y, z * z)); }
@@ -145,10 +146,6 @@ Star::Star(const double x, const double y, const uint32_t mag)
     : position({x, y}), magnitude(mag) {
 }
 
-StarIdentifier::StarIdentifier(const uint8_t si, const int16_t ci, const double w)
-    : starIndex(si), catalogIndex(ci), weight(w) {
-}
-
 Camera::Camera(const double focalLength, const uint16_t xRes, const uint16_t yRes)
     : fl_(focalLength), cx_(xRes / 2.0), cy_(yRes / 2.0) {
 }
@@ -228,7 +225,7 @@ static Vec3 star_tracker_deserialize_vec3(DeserializeContext *des) {
     return {x, y, z};
 }
 
-static Catalog star_tracker_deserialize_catalog(DeserializeContext *des) {
+static void star_tracker_deserialize_catalog(DeserializeContext *des, Catalog &catalog) {
     const auto numStars = star_tracker_deserialize_primitive<int16_t>(des);
     if (numStars < 0) {
         std::cerr << "[ERROR] Invalid catalog size: " << numStars << "\n";
@@ -238,19 +235,17 @@ static Catalog star_tracker_deserialize_catalog(DeserializeContext *des) {
     const auto flags = star_tracker_deserialize_primitive<int8_t>(des);
     const bool inclMag = flags & 1;
     const bool inclName = (flags >> 1) & 1;
-    Catalog result;
-    result.reserve(numStars);
+    catalog.count = 0;
     for (int16_t i = 0; i < numStars; i++) {
         CatalogStar s;
         s.spatial = star_tracker_deserialize_vec3(des);
         if (inclMag) star_tracker_deserialize_primitive<double>(des);
         s.name = inclName ? star_tracker_deserialize_primitive<int16_t>(des) : -1;
-        result.push_back(s);
+        catalog.push_back(s);
     }
-    return result;
 }
 
-Catalog star_tracker_load_catalog(const uint8_t *dbData) {
+void star_tracker_load_catalog(const uint8_t *dbData, Catalog &catalog) {
     const MultiDatabase multiDb(dbData);
     const uint8_t *catBuf = multiDb.SubDatabasePointer(kCatalogMagicValue);
     if (!catBuf) {
@@ -258,7 +253,7 @@ Catalog star_tracker_load_catalog(const uint8_t *dbData) {
         std::exit(1);
     }
     DeserializeContext des(catBuf);
-    return star_tracker_deserialize_catalog(&des);
+    star_tracker_deserialize_catalog(&des, catalog);
 }
 
 class KVectorIndex {

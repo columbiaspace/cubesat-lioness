@@ -2,7 +2,6 @@
 #define STAR_ID_HPP
 
 #include <cstdint>
-#include <vector>
 
 // Constants for numerical stability
 constexpr double kEpsilon = 1e-15;
@@ -64,7 +63,19 @@ struct Star {
     Star(double x, double y, uint32_t mag);
 };
 
+struct CatalogStar {
+    Vec3 spatial;
+    int16_t name;
+};
+
+struct StarIdentifier {
+    uint8_t starIndex;
+    int16_t catalogIndex;
+    double weight = 1.0;
+};
+
 constexpr uint8_t kMaxStars = 40;
+constexpr uint16_t kMaxCatalogStars = 5000;
 
 struct Stars {
     Star data[kMaxStars] = {};
@@ -74,20 +85,28 @@ struct Stars {
     [[nodiscard]] uint8_t size() const { return count; }
 };
 
-struct CatalogStar {
-    Vec3 spatial;
-    int16_t name;
+struct Catalog {
+    CatalogStar data[kMaxCatalogStars] = {};
+    uint16_t count = 0;
+    const CatalogStar &operator[](const uint16_t i) const { return data[i]; }
+    CatalogStar &operator[](const uint16_t i) { return data[i]; }
+    [[nodiscard]] uint16_t size() const { return count; }
+    void push_back(const CatalogStar &s) { data[count++] = s; }
 };
 
-struct StarIdentifier {
-    uint8_t starIndex;
-    int16_t catalogIndex;
-    double weight;
-    StarIdentifier(uint8_t si, int16_t ci, double w = 1.0);
+struct StarIdentifiers {
+    StarIdentifier data[kMaxStars] = {};
+    uint8_t count = 0;
+    const StarIdentifier &operator[](const uint8_t i) const { return data[i]; }
+    StarIdentifier &operator[](const uint8_t i) { return data[i]; }
+    [[nodiscard]] uint8_t size() const { return count; }
+    void emplace_back(const uint8_t si, const int16_t ci, const double w = 1.0) { data[count++] = {si, ci, w}; }
+    [[nodiscard]] const StarIdentifier &back() const { return data[count - 1]; }
+    [[nodiscard]] const StarIdentifier *begin() const { return data; }
+    [[nodiscard]] const StarIdentifier *end() const { return data + count; }
+    StarIdentifier *begin() { return data; }
+    StarIdentifier *end() { return data + count; }
 };
-
-using Catalog = std::vector<CatalogStar>;
-using StarIdentifiers = std::vector<StarIdentifier>;
 
 struct Camera {
     Camera(double focalLength, uint16_t xRes, uint16_t yRes);
@@ -96,7 +115,7 @@ private:
     double fl_, cx_, cy_;
 };
 
-Catalog star_tracker_load_catalog(const uint8_t *dbData);
+void star_tracker_load_catalog(const uint8_t *dbData, Catalog &catalog);
 
 StarIdentifiers star_tracker_pyramid_star_id(
     const uint8_t *database, const Stars &stars, const Catalog &catalog,
