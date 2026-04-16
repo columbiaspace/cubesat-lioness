@@ -1,4 +1,4 @@
-# LionessSw::WatchdogEmulator
+# Components::WatchdogEmulator
 
 Host-side watchdog timer emulator used to test watchdog-kick behavior before flight hardware is available.
 
