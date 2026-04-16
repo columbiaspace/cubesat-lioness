@@ -51,7 +51,9 @@ class WatchdogEmulator final : public WatchdogEmulatorComponentBase {
                                   U32 ticks             //!< Countdown value in ticks
                                   ) override;
 
-    static constexpr U32 TIMEOUT_TICKS = 50;
+    //! Read the current TIMEOUT_TICKS parameter, falling back to the FPP default.
+    U32 getTimeoutTicks();
+
     U32 m_countdownTicks;
     bool m_resetAsserted;
 };
