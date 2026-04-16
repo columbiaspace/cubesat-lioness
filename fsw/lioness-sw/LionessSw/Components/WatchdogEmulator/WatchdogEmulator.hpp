@@ -4,12 +4,12 @@
 // \brief  hpp file for WatchdogEmulator component implementation class
 // ======================================================================
 
-#ifndef LionessSw_WatchdogEmulator_HPP
-#define LionessSw_WatchdogEmulator_HPP
+#ifndef Components_WatchdogEmulator_HPP
+#define Components_WatchdogEmulator_HPP
 
 #include "LionessSw/Components/WatchdogEmulator/WatchdogEmulatorComponentAc.hpp"
 
-namespace LionessSw {
+namespace Components {
 
 class WatchdogEmulator final : public WatchdogEmulatorComponentBase {
   public:
@@ -56,6 +56,6 @@ class WatchdogEmulator final : public WatchdogEmulatorComponentBase {
     bool m_resetAsserted;
 };
 
-}  // namespace LionessSw
+}  // namespace Components
 
 #endif

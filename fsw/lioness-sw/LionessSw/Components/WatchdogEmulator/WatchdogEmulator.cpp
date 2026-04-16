@@ -6,7 +6,7 @@
 
 #include "LionessSw/Components/WatchdogEmulator/WatchdogEmulator.hpp"
 
-namespace LionessSw {
+namespace Components {
 
 // ----------------------------------------------------------------------
 // Component construction and destruction
@@ -50,4 +50,4 @@ void WatchdogEmulator ::SET_COUNTDOWN_cmdHandler(FwOpcodeType opCode, U32 cmdSeq
     this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::OK);
 }
 
-}  // namespace LionessSw
+}  // namespace Components
