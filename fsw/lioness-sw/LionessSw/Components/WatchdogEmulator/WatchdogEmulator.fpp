@@ -1,4 +1,4 @@
-module LionessSw {
+module Components {
     @ Watchdog emulator for host-based watchdog testing
     passive component WatchdogEmulator {
         @ Kick input from the watchdog component under test.
