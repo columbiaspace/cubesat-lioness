@@ -34,3 +34,14 @@ register_fprime_library(
 #         STest # For rules-based testing
 #     UT_AUTO_HELPERS
 # )
+
+set(UT_SOURCES
+    "${FPRIME_CURRENT_FORM_SRCS}"
+    "test/ut/SunSensorTestMain.cpp"
+    "test/ut/SunSensorTester.cpp"
+)
+
+register_fprime_ut(
+    UT_SOURCES
+    ${UT_SOURCES}
+)

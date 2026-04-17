@@ -27,13 +27,14 @@ namespace Components {
     tick_counter++;
 
     // array values
-    m_diode_readings[0] = 10.0f; // PX
+    m_diode_readings[0] = 0.0f; // PX
     m_diode_readings[1] = 0.0f; // MX
-    m_diode_readings[2] = 2.0f; // PY
+    m_diode_readings[2] = 0.0f; // PY
     m_diode_readings[3] = 0.0f; // MY
     m_diode_readings[4] = 0.0f; // PZ
     m_diode_readings[5] = 0.0f; // MZ
 
+    // Increment Diode Values Periodically
     m_diode_readings[0] = m_diode_readings[0] + ((F32)tick_counter)/10;
 
     // Diode telemetry to see raw values in GDS
@@ -116,7 +117,6 @@ namespace Components {
 
 
 
-
 /*
 // Proxy telemetry channels test (in tick_counter)
 // Every 10 seconds, the location is updated under its respective Channel in g
@@ -148,6 +148,47 @@ this->tlmWrite_DIODE_PZ(0.0f);   // top/bottom in shadow
 this->tlmWrite_DIODE_MZ(0.0f);
 */
 
+/*
+Tested Edge Cases
+All edge cases have been satisfied appropriately
+Note: If not explicitly valued, assume the photodiode values not mentioned are 0.
+
+1. Single Axis for Direct Sun
+  px = 1
+  Expected Output: sx = 1
+
+2. 45 degree angle 
+  px = 2, py = 2
+  Expected Output: sx = 0.707, sy = 0.707
+
+3. Epsilon edge case if very little Sun
+  px = 0.0001
+  Expected Output: sx = 0
+
+4. Negative values
+  mx = 5
+  Exepcted output: sx = -1
+
+5. Opposite Cancelling
+  px = mx = 10
+  Expected Output: sx = 0
+
+6. All "P" photodiodes with values
+  px = py = pz = 10
+  Expected Output: sx = sy = sz = 0.577
+
+7. The difference of very small values (of opposite-sided photodiodes)
+  px = 0.001001, mx = 0.001
+  Expected Output: sx = 0
+
+8. Asymmetry between one axis (positive val) and another (negative val)
+  px = 10, my = -2
+  Expected Output: sx = 0.981, sy = 0.196
 
 
+Note: (Case 5) If values on two (opposite-sided) photodiodes are ever close enough to being the same value and the other photodiodes are are omitted, as this code stands, the calculations will assume there is no Sun.
+              We may need to consider a "baseline" reflection expected from Earth (or possibly other satelites if somehow, but unlikely, brighter)
+              OR
+              A hardware filter over the photodiodes can be proposed to help discern this difference.
 
+*/
