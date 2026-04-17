@@ -4,7 +4,7 @@
 //
 // ======================================================================
 // Used to access topology functions
-#include <FlatSat/Top/FlatSatTopology.hpp>
+#include <LionessSw/FlatSat/Top/FlatSatTopology.hpp>
 // OSAL initialization
 #include <Os/Os.hpp>
 // Used for signal handling shutdown
@@ -13,6 +13,7 @@
 #include <getopt.h>
 // Used for printf functions
 #include <cstdlib>
+#include <cstdio>
 
 /**
  * \brief print command line help message
@@ -22,7 +23,13 @@
  * @param app: name of application
  */
 void print_usage(const char* app) {
-    (void)printf("Usage: ./%s [options]\n-a\thostname/IP address\n-p\tport_number\n", app);
+    (void)printf(
+        "Usage: ./%s [options]\n"
+        "  -u <path>   Primary  (ComCcsds)        UART device path (default: /dev/ttyUSB0)\n"
+        "  -r <path>   Secondary (ComCcsdsRoarFM) UART device path (default: /dev/ttyUSB1)\n"
+        "  -b <rate>   UART baud rate for both devices (default: 115200)\n"
+        "  -h          Show this help message\n",
+        app);
 }
 
 /**
@@ -40,8 +47,13 @@ static void signalHandler(int signum) {
 /**
  * \brief execute the program
  *
- * This F´ program is designed to run in standard environments (e.g. Linux/macOs running on a laptop). Thus it uses
- * command line inputs to specify how to connect.
+ * This F' program drives a FlatSat deployment with a split communications
+ * stack: the core ComCcsds subtopology is fed by a primary UART driver and a
+ * project-level ComCcsdsRoarFM subtopology is fed by a secondary UART driver
+ * (the latter stands in for the future Roar FM radio during bring-up).
+ *
+ * Device paths for the two UART links and the shared baud rate are passed in
+ * via command line flags; sensible defaults are used for values not supplied.
  *
  * @param argc: argument count supplied to program
  * @param argv: argument values supplied to program
@@ -49,45 +61,47 @@ static void signalHandler(int signum) {
  */
 int main(int argc, char* argv[]) {
     I32 option = 0;
-    CHAR* hostname = nullptr;
-    U16 port_number = 0;
+    const char* uartDevice = "/dev/ttyUSB0";
+    const char* roarfmUartDevice = "/dev/ttyUSB1";
+    U32 baudRate = 115200;
 
     Os::init();
 
-    // Loop while reading the getopt supplied options
-    while ((option = getopt(argc, argv, "hp:a:")) != -1) {
+    while ((option = getopt(argc, argv, "hu:r:b:")) != -1) {
         switch (option) {
-            // Handle the -a argument for address/hostname
-            case 'a':
-                hostname = optarg;
+            case 'u':
+                uartDevice = optarg;
                 break;
-            // Handle the -p port number argument
-            case 'p':
-                port_number = static_cast<U16>(atoi(optarg));
+            case 'r':
+                roarfmUartDevice = optarg;
                 break;
-            // Cascade intended: help output
+            case 'b':
+                baudRate = static_cast<U32>(std::atoi(optarg));
+                break;
             case 'h':
-            // Cascade intended: help output
             case '?':
-            // Default case: output help and exit
             default:
                 print_usage(argv[0]);
                 return (option == 'h') ? 0 : 1;
         }
     }
+
     // Object for communicating state to the topology
     FlatSat::TopologyState inputs;
-    inputs.hostname = hostname;
-    inputs.port = port_number;
+    inputs.uartDevice = uartDevice;
+    inputs.roarfmUartDevice = roarfmUartDevice;
+    inputs.baudRate = baudRate;
 
     // Setup program shutdown via Ctrl-C
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
+    (void)printf("Primary UART:  %s @ %u baud\n", uartDevice, static_cast<unsigned>(baudRate));
+    (void)printf("RoarFM UART:   %s @ %u baud\n", roarfmUartDevice, static_cast<unsigned>(baudRate));
     (void)printf("Hit Ctrl-C to quit\n");
 
     // Setup, cycle, and teardown topology
     FlatSat::setupTopology(inputs);
-    FlatSat::startRateGroups(Fw::TimeInterval(1,0));  // Program loop cycling rate groups at 1Hz
+    FlatSat::startRateGroups(Fw::TimeInterval(1, 0));  // Program loop cycling rate groups at 1Hz
     FlatSat::teardownTopology(inputs);
     (void)printf("Exiting...\n");
     return 0;

@@ -14,7 +14,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/lib/fprime/cmake/FPrime.cmake")
 # NOTE: register custom targets between these two lines
 fprime_setup_included_code()
 
-
-# This includes project-wide objects
+# Everything under the LionessSw namespace: project-wide components and ports,
+# project-level configuration overrides, project-level subtopologies, and the
+# FlatSat deployment.
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/LionessSw")
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/FlatSat/")
