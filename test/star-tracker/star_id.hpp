@@ -77,35 +77,41 @@ struct StarIdentifier {
 constexpr uint8_t kMaxStars = 40;
 constexpr uint16_t kMaxCatalogStars = 5000;
 
-struct Stars {
-    Star data[kMaxStars] = {};
-    uint8_t count = 0;
-    const Star &operator[](const uint8_t i) const { return data[i]; }
-    Star &operator[](const uint8_t i) { return data[i]; }
-    [[nodiscard]] uint8_t size() const { return count; }
+template <typename T, typename SizeT, SizeT MaxSize>
+struct FixedArray {
+    T data[MaxSize];
+    SizeT count = 0;
+    const T &operator[](SizeT i) const { return data[i]; }
+    T &operator[](SizeT i) { return data[i]; }
+    [[nodiscard]] SizeT size() const { return count; }
+    [[nodiscard]] bool empty() const { return count == 0; }
+    void push_back(const T &v) { data[count++] = v; }
+    [[nodiscard]] const T &back() const { return data[count - 1]; }
+    void pop_back() { --count; }
+    [[nodiscard]] const T *begin() const { return data; }
+    [[nodiscard]] const T *end() const { return data + count; }
+    T *begin() { return data; }
+    T *end() { return data + count; }
+    T *erase(T *pos) {
+        for (T *p = pos; p < data + count - 1; ++p)
+            *p = *(p + 1);
+        --count;
+        return pos;
+    }
+    T *erase(T *first, T *last) {
+        T *dst = first;
+        for (T *src = last; src < data + count; ++src)
+            *dst++ = *src;
+        count -= static_cast<SizeT>(last - first);
+        return first;
+    }
 };
 
-struct Catalog {
-    CatalogStar data[kMaxCatalogStars] = {};
-    uint16_t count = 0;
-    const CatalogStar &operator[](const uint16_t i) const { return data[i]; }
-    CatalogStar &operator[](const uint16_t i) { return data[i]; }
-    [[nodiscard]] uint16_t size() const { return count; }
-    void push_back(const CatalogStar &s) { data[count++] = s; }
-};
+using Stars = FixedArray<Star, uint8_t, kMaxStars>;
+using Catalog = FixedArray<CatalogStar, uint16_t, kMaxCatalogStars>;
 
-struct StarIdentifiers {
-    StarIdentifier data[kMaxStars] = {};
-    uint8_t count = 0;
-    const StarIdentifier &operator[](const uint8_t i) const { return data[i]; }
-    StarIdentifier &operator[](const uint8_t i) { return data[i]; }
-    [[nodiscard]] uint8_t size() const { return count; }
+struct StarIdentifiers : FixedArray<StarIdentifier, uint8_t, kMaxStars> {
     void emplace_back(const uint8_t si, const int16_t ci, const double w = 1.0) { data[count++] = {si, ci, w}; }
-    [[nodiscard]] const StarIdentifier &back() const { return data[count - 1]; }
-    [[nodiscard]] const StarIdentifier *begin() const { return data; }
-    [[nodiscard]] const StarIdentifier *end() const { return data + count; }
-    StarIdentifier *begin() { return data; }
-    StarIdentifier *end() { return data + count; }
 };
 
 struct Camera {
@@ -117,10 +123,10 @@ private:
 
 void star_tracker_load_catalog(const uint8_t *dbData, Catalog &catalog);
 
-StarIdentifiers star_tracker_pyramid_star_id(
+void star_tracker_pyramid_star_id(
     const uint8_t *database, const Stars &stars, const Catalog &catalog,
-    const Camera &camera, double tolerance, uint32_t numFalseStars,
-    double maxMismatchProbability, uint64_t cutoff);
+    const Camera &camera, StarIdentifiers &identified, double tolerance,
+    uint32_t numFalseStars, double maxMismatchProbability, uint64_t cutoff);
 
 Quaternion star_tracker_quest_attitude(const Camera &camera, const Stars &stars,
                          const Catalog &catalog, const StarIdentifiers &ids);

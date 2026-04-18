@@ -390,6 +390,8 @@ public:
     uint8_t index;
     const Star *star;
 
+    IRUnidentifiedCentroid() = default;
+
     IRUnidentifiedCentroid(const Star &s, const uint8_t idx)
         : bestAngleFrom90(std::numeric_limits<double>::max()),
           bestStar1(0, 0), bestStar2(0, 0), index(idx), star(&s) {
@@ -413,15 +415,21 @@ private:
     std::vector<std::pair<double, StarIdentifier> > identifiedStarsInRange_;
 };
 
-static std::vector<std::vector<IRUnidentifiedCentroid *>::iterator>
-FindUnidentifiedCentroidsInRange(std::vector<IRUnidentifiedCentroid *> *centroids,
+struct IRUnidentifiedCentroids : FixedArray<IRUnidentifiedCentroid, uint8_t, kMaxStars> {
+    void emplace_back(const Star &s, const uint8_t idx) { data[count++] = {s, idx}; }
+};
+
+using IRUnidentifiedCentroidPointers = FixedArray<IRUnidentifiedCentroid *, uint8_t, kMaxStars>;
+
+static std::vector<IRUnidentifiedCentroid *>
+FindUnidentifiedCentroidsInRange(IRUnidentifiedCentroidPointers *centroids,
                                  const Star &star, const Camera &camera,
                                  const double minDist, const double maxDist) {
     const Vec3 ourSpatial = camera.CameraToSpatial(star.position).Normalize();
     const double minCos = std::cos(maxDist), maxCos = std::cos(minDist);
-    std::vector<std::vector<IRUnidentifiedCentroid *>::iterator> result;
-    for (auto it = centroids->begin(); it != centroids->end(); ++it) {
-        const double c = ourSpatial * camera.CameraToSpatial((*it)->star->position).Normalize();
+    std::vector<IRUnidentifiedCentroid *> result;
+    for (auto &it: *centroids) {
+        const double c = ourSpatial * camera.CameraToSpatial(it->star->position).Normalize();
         if (c >= minCos && c <= maxCos) result.push_back(it);
     }
     return result;
@@ -429,26 +437,27 @@ FindUnidentifiedCentroidsInRange(std::vector<IRUnidentifiedCentroid *> *centroid
 
 static void AddToAllUnidentifiedCentroids(
     const StarIdentifier &starId, const Stars &stars,
-    std::vector<IRUnidentifiedCentroid *> *above,
-    std::vector<IRUnidentifiedCentroid *> *below,
+    IRUnidentifiedCentroidPointers *above,
+    IRUnidentifiedCentroidPointers *below,
     const double minDist, const double maxDist, const double threshold, const Camera &camera) {
     std::vector<uint8_t> nowBelow;
-    for (auto it: FindUnidentifiedCentroidsInRange(above, stars[starId.starIndex], camera, minDist, maxDist)) {
-        (*it)->AddIdentifiedStar(starId, stars);
-        if ((*it)->bestAngleFrom90 <= threshold) {
-            below->push_back(*it);
-            nowBelow.push_back((*it)->index);
+    for (const auto it: FindUnidentifiedCentroidsInRange(above, stars[starId.starIndex], camera, minDist, maxDist)) {
+        it->AddIdentifiedStar(starId, stars);
+        if (it->bestAngleFrom90 <= threshold) {
+            below->push_back(it);
+            nowBelow.push_back(it->index);
         }
     }
-    std::erase_if(*above,
-                  [&](const IRUnidentifiedCentroid *c) {
-                      return std::ranges::find(nowBelow, c->index) != nowBelow.end();
-                  });
+    above->erase(std::ranges::remove_if(*above,
+                                        [&](const IRUnidentifiedCentroid *c) {
+                                            return std::ranges::find(nowBelow, c->index) != nowBelow.end();
+                                        }).begin(),
+                 above->end());
 }
 
 static IRUnidentifiedCentroid *SelectNextUnidentifiedCentroid(
-    std::vector<IRUnidentifiedCentroid *> *above,
-    std::vector<IRUnidentifiedCentroid *> *below) {
+    IRUnidentifiedCentroidPointers *above,
+    IRUnidentifiedCentroidPointers *below) {
     if (!below->empty()) {
         const auto r = below->back();
         below->pop_back();
@@ -470,15 +479,13 @@ static int32_t IdentifyRemainingStarsPairDistance(
     StarIdentifiers *identifiers, const Stars &stars,
     const PairDistanceKVectorDatabase &db, const Catalog &catalog,
     const Camera &camera, const double tolerance) {
-    std::vector<IRUnidentifiedCentroid> all;
-    std::vector<IRUnidentifiedCentroid *> above, below;
-    all.reserve(stars.size());
+    auto *all = new IRUnidentifiedCentroids();
+    IRUnidentifiedCentroidPointers above, below;
     for (uint8_t i = 0; i < stars.size(); i++) {
-        all.emplace_back(stars[i], i);
+        all->emplace_back(stars[i], i);
     }
 
-    above.reserve(all.size());
-    for (auto &c: all) {
+    for (auto &c: *all) {
         bool found = false;
         for (const auto &id: *identifiers)
             if (id.starIndex == c.index) {
@@ -516,19 +523,21 @@ static int32_t IdentifyRemainingStarsPairDistance(
             ++extra;
         }
     }
+
+    delete all;
+
     return extra;
 }
 
-StarIdentifiers star_tracker_pyramid_star_id(
+void star_tracker_pyramid_star_id(
     const uint8_t *database, const Stars &stars, const Catalog &catalog,
-    const Camera &camera, double tolerance, uint32_t numFalseStars,
-    double maxMismatchProbability, uint64_t cutoff) {
-    StarIdentifiers identified;
+    const Camera &camera, StarIdentifiers &identified, double tolerance,
+    uint32_t numFalseStars, double maxMismatchProbability, uint64_t cutoff) {
     MultiDatabase multiDb(database);
     const uint8_t *dbBuf = multiDb.SubDatabasePointer(PairDistanceKVectorDatabase::kMagicValue);
     if (!dbBuf || stars.size() < 4) {
         std::cerr << "[WARN] Not enough stars or database missing.\n";
-        return identified;
+        return;
     }
     DeserializeContext des(dbBuf);
     PairDistanceKVectorDatabase db(&des);
@@ -550,7 +559,7 @@ StarIdentifiers star_tracker_pyramid_star_id(
                     int32_t i = (iI + iMax / 2) % (iMax + 1);
                     if (++iters > cutoff) {
                         std::cerr << "[WARN] Cutoff reached.\n";
-                        return identified;
+                        return;
                     }
 
                     int32_t j = i + dj, k = j + dk, r = k + dr;
@@ -630,7 +639,7 @@ StarIdentifiers star_tracker_pyramid_star_id(
                         int32_t extra = IdentifyRemainingStarsPairDistance(&identified, stars, db, catalog, camera,
                                                                        tolerance);
                         std::cout << "[INFO] Identified " << extra << " additional stars.\n";
-                        return identified;
+                        return;
                     }
                 next:;
                 }
@@ -638,7 +647,6 @@ StarIdentifiers star_tracker_pyramid_star_id(
         }
     }
     std::cerr << "[WARN] Tried all pyramids; none matched.\n";
-    return identified;
 }
 
 static double QuestCharPoly(const double x, const double a, const double b, const double c, const double d, const double s) {

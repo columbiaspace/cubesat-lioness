@@ -181,7 +181,7 @@ static uint32_t centroids_cog_helper(CentroidParams *p, const uint32_t i, uint8_
     return magnitude;
 }
 
-static void calculate_centroids_cog(Stars &stars, uint8_t *image, const uint16_t imageWidth, const uint16_t imageHeight, const uint32_t minMagnitude) {
+static void calculate_centroids_cog(uint8_t *image, const uint16_t imageWidth, const uint16_t imageHeight, Stars &stars, const uint32_t minMagnitude) {
     CentroidParams p = {};
 
     p.cutoff = centroids_basic_threshold(image, imageWidth, imageHeight);
@@ -286,8 +286,8 @@ int main(const int argc, const char *argv[]) {
               << " (" << frame.data.size() << " bytes)\n";
 
     Stars stars;
-    calculate_centroids_cog(stars, frame.data.data(), frame.width, frame.height, minMagnitude);
-    std::cout << "[INFO] Stars: " << stars.size() << "\n";
+    calculate_centroids_cog(frame.data.data(), frame.width, frame.height, stars, minMagnitude);
+    std::cout << "[INFO] Observed: " << static_cast<int>(stars.size()) << " stars\n";
 
     std::ifstream dbFile(databaseFile, std::ios::binary | std::ios::ate);
     if (!dbFile) {
@@ -310,10 +310,11 @@ int main(const int argc, const char *argv[]) {
     std::cout << "[INFO] Focal length: " << focalLengthPx << " px\n";
 
     // Star identification
+    StarIdentifiers identified;
     double toleranceRad = toleranceDeg * M_PI / 180.0;
-    StarIdentifiers identified = star_tracker_pyramid_star_id(dbData.data(), stars, *catalog, camera,
-                                                toleranceRad, numFalseStars, maxMismatchProbability, cutoff);
-    std::cout << "[INFO] Identified: " << identified.size() << " stars\n";
+    star_tracker_pyramid_star_id(dbData.data(), stars, *catalog, camera, identified,
+                                 toleranceRad, numFalseStars, maxMismatchProbability, cutoff);
+    std::cout << "[INFO] Identified: " << static_cast<int>(identified.size()) << " stars\n";
 
     // Attitude estimation
     if (identified.size() >= 2) {
