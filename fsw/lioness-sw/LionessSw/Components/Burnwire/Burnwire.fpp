@@ -9,10 +9,6 @@ module Components {
             severity activity high \
             format "Burnwire State: {}"
 
-        event SafetyTimerStatus(burnwire_state: Fw.On) \
-            severity activity high\
-            format "Safety Timer State: {} "
-
         event SafetyTimerState(burnwire_status: U32) \
             severity activity high\
             format "Safety Timer Will Burn For: {} Seconds"
