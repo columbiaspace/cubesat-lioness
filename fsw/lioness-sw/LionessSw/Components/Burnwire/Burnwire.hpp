@@ -4,12 +4,12 @@
 // \brief  hpp file for Burnwire component implementation class
 // ======================================================================
 
-#ifndef LionessSw_Burnwire_HPP
-#define LionessSw_Burnwire_HPP
+#ifndef Components_Burnwire_HPP
+#define Components_Burnwire_HPP
 
 #include "LionessSw/Components/Burnwire/BurnwireComponentAc.hpp"
 
-namespace LionessSw {
+namespace Components {
 
 class Burnwire final : public BurnwireComponentBase {
   public:
@@ -29,18 +29,6 @@ class Burnwire final : public BurnwireComponentBase {
     // Handler implementations for typed input ports
     // ----------------------------------------------------------------------
 
-    //! Handler implementation for burnStart
-    //!
-    //! Port getting start signal
-    void burnStart_handler(FwIndexType portNum  //!< The port number
-                           ) override;
-
-    //! Handler implementation for burnStop
-    //!
-    //! Port getting stop signal
-    void burnStop_handler(FwIndexType portNum  //!< The port number
-                          ) override;
-
     //! Handler implementation for schedIn
     //!
     //! Input Port to get the rate group
@@ -57,17 +45,17 @@ class Burnwire final : public BurnwireComponentBase {
     //!
     //! START_BURNWIRE turns on the burnwire
     void START_BURNWIRE_cmdHandler(FwOpcodeType opCode,  //!< The opcode
-                                   U32 cmdSeq            //!< The command sequence number
-                                   ) override;
+                                   U32 cmdSeq,           //!< The command sequence number
+                                   U32 durationS) override;
 
-    //! Handler implementation for command STOP_BURNWIRE
-    //!
-    //! STOP_BURNWIRE turns on the burnwire
-    void STOP_BURNWIRE_cmdHandler(FwOpcodeType opCode,  //!< The opcode
-                                  U32 cmdSeq            //!< The command sequence number
-                                  ) override;
+    
+    Fw::On m_state = Fw::On::OFF;   // ON/OFF burn state
+    U32 m_safetyCounter = 0;       
+    U32 m_timeout = 0;
+    static constexpr U32 SCHED_HZ = 10;              
+                                       
 };
 
-}  // namespace LionessSw
+}  // namespace Components
 
 #endif

@@ -6,13 +6,16 @@
 
 #include "LionessSw/Components/Burnwire/Burnwire.hpp"
 
-namespace LionessSw {
+namespace Components {
 
 // ----------------------------------------------------------------------
 // Component construction and destruction
 // ----------------------------------------------------------------------
 
-Burnwire ::Burnwire(const char* const compName) : BurnwireComponentBase(compName) {}
+Burnwire ::Burnwire(const char* const compName) : BurnwireComponentBase(compName) {
+    this->m_safetyCounter = 0;
+    this->m_state = Fw::On::OFF;
+}
 
 Burnwire ::~Burnwire() {}
 
@@ -20,30 +23,70 @@ Burnwire ::~Burnwire() {}
 // Handler implementations for typed input ports
 // ----------------------------------------------------------------------
 
-void Burnwire ::burnStart_handler(FwIndexType portNum) {
-    // TODO
-}
+void Burnwire::schedIn_handler(FwIndexType portNum, U32 context) {
 
-void Burnwire ::burnStop_handler(FwIndexType portNum) {
-    // TODO
-}
+    if (this->m_state == Fw::On::ON) {
 
-void Burnwire ::schedIn_handler(FwIndexType portNum, U32 context) {
-    // TODO
+        this->m_safetyCounter++;
+
+        // First tick → turn ON
+        if (this->m_safetyCounter == 1) {
+            this->gpioSet_out(0, Fw::Logic::HIGH);
+            this->gpioSet_out(1, Fw::Logic::HIGH);
+
+            // 🔥 Event: Burn started
+            this->log_ACTIVITY_HI_SetBurnwireState(Fw::On::ON);
+        }
+
+        // Timeout reached → turn OFF
+        if (this->m_safetyCounter >= this->m_timeout) {
+
+            this->gpioSet_out(0, Fw::Logic::LOW);
+            this->gpioSet_out(1, Fw::Logic::LOW);
+
+            // Convert ticks → seconds for logging
+            U32 seconds = this->m_timeout / SCHED_HZ;
+
+            // 🔥 Event: how long we burned
+            this->log_ACTIVITY_LO_BurnwireEndCount(seconds);
+
+            this->m_state = Fw::On::OFF;
+            this->m_safetyCounter = 0;
+
+            // 🔥 Event: Burn stopped
+            this->log_ACTIVITY_HI_SetBurnwireState(Fw::On::OFF);
+        }
+    }
 }
 
 // ----------------------------------------------------------------------
 // Handler implementations for commands
 // ----------------------------------------------------------------------
 
-void Burnwire ::START_BURNWIRE_cmdHandler(FwOpcodeType opCode, U32 cmdSeq) {
-    // TODO
+void Burnwire::START_BURNWIRE_cmdHandler(FwOpcodeType opCode, U32 cmdSeq, U32 durationS) {
+    Fw::ParamValid valid;
+    U32 maxTime = this->paramGet_SAFETY_TIMER(valid);
+
+    if (valid != Fw::ParamValid::VALID) {
+        maxTime = 30;
+    }
+
+    // Clamp in seconds
+    if (durationS > maxTime) {
+        durationS = maxTime;
+    }
+
+    // Convert seconds → ticks
+    this->m_timeout = durationS * SCHED_HZ;
+
+    this->m_safetyCounter = 0;
+    this->m_state = Fw::On::ON;
+
+    // 🔥 Event: commanded duration
+    this->log_ACTIVITY_HI_SafetyTimerState(durationS);
+
+    // ACK command
     this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::OK);
 }
 
-void Burnwire ::STOP_BURNWIRE_cmdHandler(FwOpcodeType opCode, U32 cmdSeq) {
-    // TODO
-    this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::OK);
 }
-
-}  // namespace LionessSw

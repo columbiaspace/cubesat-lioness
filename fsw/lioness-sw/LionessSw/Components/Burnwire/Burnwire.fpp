@@ -1,14 +1,9 @@
-module LionessSw {
+module Components {
     @ Ignites grounded Burnwire
     passive component Burnwire {
 
         @ START_BURNWIRE turns on the burnwire
-        sync command START_BURNWIRE(
-        )
-
-        @ STOP_BURNWIRE turns on the burnwire
-        sync command STOP_BURNWIRE(
-        )
+        sync command START_BURNWIRE(durationS: U32)
 
         event SetBurnwireState(burnwire_state: Fw.On) \
             severity activity high \
@@ -25,12 +20,6 @@ module LionessSw {
         event BurnwireEndCount(end_count: U32) \
             severity activity low \
             format "Burnwire Burned for {} Seconds"
-
-        @ Port getting start signal
-        sync input port burnStart: Fw.Signal
-
-        @ Port getting stop signal
-        sync input port burnStop: Fw.Signal
 
         @ Input Port to get the rate group
         sync input port schedIn: Svc.Sched
