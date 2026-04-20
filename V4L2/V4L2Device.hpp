@@ -11,8 +11,8 @@ struct V4L2Device
     std::string driver;
     std::string card;
     std::string bus_info;
-    __u32 capabilities;
     int fd;
+    __u32 capabilities;
 
     V4L2Device() : fd(-1), capabilities(0) {}
 
