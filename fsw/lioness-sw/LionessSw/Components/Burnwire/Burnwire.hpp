@@ -50,9 +50,8 @@ class Burnwire final : public BurnwireComponentBase {
 
     
     Fw::On m_state = Fw::On::OFF;   // ON/OFF burn state
-    U32 m_safetyCounter = 0;       
-    U32 m_timeout = 0;
-    static constexpr U32 SCHED_HZ = 10;              
+    U32 m_timer = 0;       
+    U32 m_timeout = 0;              
                                        
 };
 

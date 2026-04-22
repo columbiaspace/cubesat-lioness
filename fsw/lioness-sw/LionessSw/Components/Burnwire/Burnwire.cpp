@@ -13,7 +13,7 @@ namespace Components {
 // ----------------------------------------------------------------------
 
 Burnwire ::Burnwire(const char* const compName) : BurnwireComponentBase(compName) {
-    this->m_safetyCounter = 0;
+    this->m_timer = 0;
     this->m_state = Fw::On::OFF;
 }
 
@@ -27,31 +27,30 @@ void Burnwire::schedIn_handler(FwIndexType portNum, U32 context) {
 
     if (this->m_state == Fw::On::ON) {
 
-        this->m_safetyCounter++;
+        this->m_timer++;
 
         // First tick → turn ON
-        if (this->m_safetyCounter == 1) {
+        if (this->m_timer == 1) {
             this->gpioSet_out(0, Fw::Logic::HIGH);
-            this->gpioSet_out(1, Fw::Logic::HIGH);
+            
 
             // 🔥 Event: Burn started
             this->log_ACTIVITY_HI_SetBurnwireState(Fw::On::ON);
         }
 
         // Timeout reached → turn OFF
-        if (this->m_safetyCounter >= this->m_timeout) {
+        if (this->m_timer >= this->m_timeout) {
 
             this->gpioSet_out(0, Fw::Logic::LOW);
-            this->gpioSet_out(1, Fw::Logic::LOW);
 
             // Convert ticks → seconds for logging
-            U32 seconds = this->m_timeout / SCHED_HZ;
+            U32 seconds = this->m_timeout;
 
             // 🔥 Event: how long we burned
             this->log_ACTIVITY_LO_BurnwireEndCount(seconds);
 
             this->m_state = Fw::On::OFF;
-            this->m_safetyCounter = 0;
+            this->m_timer = 0;
 
             // 🔥 Event: Burn stopped
             this->log_ACTIVITY_HI_SetBurnwireState(Fw::On::OFF);
@@ -77,9 +76,9 @@ void Burnwire::START_BURNWIRE_cmdHandler(FwOpcodeType opCode, U32 cmdSeq, U32 du
     }
 
     // Convert seconds → ticks
-    this->m_timeout = durationS * SCHED_HZ;
+    this->m_timeout = durationS;
 
-    this->m_safetyCounter = 0;
+    this->m_timer = 0;
     this->m_state = Fw::On::ON;
 
     // 🔥 Event: commanded duration

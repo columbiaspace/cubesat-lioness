@@ -20,11 +20,11 @@ module Components {
         @ Input Port to get the rate group
         sync input port schedIn: Svc.Sched
 
-        @ Port sending calls to the GPIO driver to stop and start the burnwire
-        output port gpioSet: [2] Drv.GpioWrite
+        @ Port sending calls to the GPIO driver to start the burnwire
+        output port gpioSet: Drv.GpioWrite
 
         # @ SAFETY_TIMER parameter is the maximum time that the burn component will run
-        param SAFETY_TIMER: U32 default 30
+        param SAFETY_TIMER: U32 default 30 # Seconds
 
 
         ##############################################################################
@@ -66,6 +66,7 @@ module Components {
 
         @Port to set the value of a parameter
         param set port prmSetOut
-
+        
+    
     }
 }
