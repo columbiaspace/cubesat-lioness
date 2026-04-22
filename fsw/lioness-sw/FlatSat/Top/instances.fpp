@@ -50,7 +50,7 @@ module FlatSat {
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 45
-
+  
 
   # ----------------------------------------------------------------------
   # Queued component instances
@@ -74,5 +74,9 @@ module FlatSat {
   instance watchdog: Components.fsw_watchdog base id 0x10015000
 
   instance watchdogGpio: Drv.LinuxGpioDriver  base id 0x10016000
+
+  instance burnwire: Components.Burnwire base id 0x10017000
+
+  instance gpioDriver: Drv.LinuxGpioDriver base id 0x10018000
 
 }

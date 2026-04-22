@@ -35,6 +35,8 @@ module FlatSat {
     instance watchdog
     instance watchdogGpio
     instance modeManager
+    instance gpioDriver
+    instance burnwire
 
   # ----------------------------------------------------------------------
   # Pattern graph specifiers
@@ -102,6 +104,8 @@ module FlatSat {
     connections RateGroups {
       # timer to drive rate group
       timer.CycleOut -> rateGroupDriver.CycleIn
+          # Named connection group
+    
 
       # Rate group 1
       rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup1] -> rateGroup1.CycleIn
@@ -112,6 +116,7 @@ module FlatSat {
       rateGroup1.RateGroupMemberOut[4] -> ComCcsds.aggregator.timeout
       rateGroup1.RateGroupMemberOut[5] -> watchdog.run
       rateGroup1.RateGroupMemberOut[6] -> modeManager.schedIn
+      rateGroup1.RateGroupMemberOut[7] -> burnwire.schedIn
 
       # Rate group 2
       rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> rateGroup2.CycleIn
@@ -136,6 +141,9 @@ module FlatSat {
       watchdog.gpioSet -> watchdogGpio.gpioWrite
     }
 
+    connections Burnwire {
+      burnwire.gpioSet -> gpioDriver.gpioWrite
+    }
+    
   }
-
 }
