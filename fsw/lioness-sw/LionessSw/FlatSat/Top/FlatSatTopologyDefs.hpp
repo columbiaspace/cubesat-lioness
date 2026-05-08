@@ -11,19 +11,21 @@
 #include "Svc/Subtopologies/ComCcsds/PingEntries.hpp"
 #include "Svc/Subtopologies/DataProducts/PingEntries.hpp"
 #include "Svc/Subtopologies/FileHandling/PingEntries.hpp"
+#include "LionessSw/ComCcsdsRoarFM/PingEntries.hpp"
 
 // SubtopologyTopologyDefs includes
 #include "Svc/Subtopologies/CdhCore/SubtopologyTopologyDefs.hpp"
 #include "Svc/Subtopologies/ComCcsds/SubtopologyTopologyDefs.hpp"
 #include "Svc/Subtopologies/DataProducts/SubtopologyTopologyDefs.hpp"
 #include "Svc/Subtopologies/FileHandling/SubtopologyTopologyDefs.hpp"
+#include "LionessSw/ComCcsdsRoarFM/SubtopologyTopologyDefs.hpp"
 
 //ComCcsds Enum Includes
 #include "Svc/Subtopologies/ComCcsds/Ports_ComPacketQueueEnumAc.hpp"
 #include "Svc/Subtopologies/ComCcsds/Ports_ComBufferQueueEnumAc.hpp"
 
 // Include autocoded FPP constants
-#include "FlatSat/Top/FppConstantsAc.hpp"
+#include "LionessSw/FlatSat/Top/FppConstantsAc.hpp"
 
 /**
  * \brief required ping constants
@@ -62,12 +64,18 @@ namespace FlatSat {
  * contents are entirely up to the definition of the project. This deployment uses subtopologies.
  */
 struct TopologyState {
-    const char* hostname;   //!< Hostname for TCP communication
-    U16 port;              //!< Port for TCP communication
-    CdhCore::SubtopologyState cdhCore;           //!< Subtopology state for CdhCore
-    ComCcsds::SubtopologyState comCcsds;         //!< Subtopology state for ComCcsds 
-    DataProducts::SubtopologyState dataProducts; //!< Subtopology state for DataProducts
-    FileHandling::SubtopologyState fileHandling; //!< Subtopology state for FileHandling
+    //! UART device path for the primary ComCcsds stack (e.g. "/dev/ttyUSB0")
+    const char* uartDevice;
+    //! UART device path for the ComCcsdsRoarFM stack (stands in for the
+    //! future Roar FM radio, e.g. "/dev/ttyUSB1")
+    const char* roarfmUartDevice;
+    //! Baud rate used for both UART devices above
+    U32 baudRate;
+    CdhCore::SubtopologyState cdhCore;                 //!< Subtopology state for CdhCore
+    ComCcsds::SubtopologyState comCcsds;               //!< Subtopology state for ComCcsds
+    ComCcsdsRoarFM::SubtopologyState comCcsdsRoarFM;   //!< Subtopology state for ComCcsdsRoarFM
+    DataProducts::SubtopologyState dataProducts;       //!< Subtopology state for DataProducts
+    FileHandling::SubtopologyState fileHandling;       //!< Subtopology state for FileHandling
 };
 
 namespace PingEntries = ::PingEntries;

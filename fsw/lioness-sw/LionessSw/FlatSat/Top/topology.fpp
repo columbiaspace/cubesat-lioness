@@ -17,9 +17,10 @@ module FlatSat {
   # ----------------------------------------------------------------------
     import CdhCore.Subtopology
     import ComCcsds.Subtopology
+    import ComCcsdsRoarFM.Subtopology
     import DataProducts.Subtopology
     import FileHandling.Subtopology
-    
+
   # ----------------------------------------------------------------------
   # Instances used in the topology
   # ----------------------------------------------------------------------
@@ -31,6 +32,9 @@ module FlatSat {
     instance systemResources
     instance timer
     instance comDriver
+    instance roarfmDriver
+    instance comSplitterEvents
+    instance comSplitterTelemetry
     instance cmdSeq
     instance watchdog
     instance watchdogGpio
@@ -59,18 +63,29 @@ module FlatSat {
   # ----------------------------------------------------------------------
 
     connections ComCcsds_CdhCore {
-      # Core events and telemetry to communication queue
-      CdhCore.events.PktSend -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.EVENTS]
-      CdhCore.tlmSend.PktSend -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.TELEMETRY]
+      # Core events and telemetry fan-out to both com stacks via ComSplitters
+      CdhCore.events.PktSend  -> comSplitterEvents.comIn
+      comSplitterEvents.comOut -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.EVENTS]
+      comSplitterEvents.comOut -> ComCcsdsRoarFM.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.EVENTS]
 
-      # Router to Command Dispatcher
-      ComCcsds.fprimeRouter.commandOut -> CdhCore.cmdDisp.seqCmdBuff
-      CdhCore.cmdDisp.seqCmdStatus -> ComCcsds.fprimeRouter.cmdResponseIn
-      
+      CdhCore.tlmSend.PktSend -> comSplitterTelemetry.comIn
+      comSplitterTelemetry.comOut -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.TELEMETRY]
+      comSplitterTelemetry.comOut -> ComCcsdsRoarFM.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.TELEMETRY]
+
+      # Uplinked commands from either stack's router are routed to the Command Dispatcher.
+      # Both connections share the cmdDisp's seqCmdBuff/seqCmdStatus pair (FPP auto-assigns
+      # distinct port indices per connection).
+      ComCcsds.fprimeRouter.commandOut       -> CdhCore.cmdDisp.seqCmdBuff
+      CdhCore.cmdDisp.seqCmdStatus           -> ComCcsds.fprimeRouter.cmdResponseIn
+
+      ComCcsdsRoarFM.fprimeRouter.commandOut -> CdhCore.cmdDisp.seqCmdBuff
+      CdhCore.cmdDisp.seqCmdStatus           -> ComCcsdsRoarFM.fprimeRouter.cmdResponseIn
     }
 
     connections ComCcsds_FileHandling {
-      # File Downlink to Communication Queue
+      # File downlink/uplink currently only run over the primary (ComCcsds) stack.
+      # The RoarFM stack mirrors events/telemetry for situational awareness during
+      # bring-up but is not yet used for file transfer.
       FileHandling.fileDownlink.bufferSendOut -> ComCcsds.comQueue.bufferQueueIn[ComCcsds.Ports_ComBufferQueue.FILE]
       ComCcsds.comQueue.bufferReturnOut[ComCcsds.Ports_ComBufferQueue.FILE] -> FileHandling.fileDownlink.bufferReturn
 
@@ -80,17 +95,32 @@ module FlatSat {
     }
 
     connections Communications {
-      # ComDriver buffer allocations
+      # Primary com stack: ComDriver (UART) <-> ComCcsds.comStub
       comDriver.allocate      -> ComCcsds.commsBufferManager.bufferGetCallee
       comDriver.deallocate    -> ComCcsds.commsBufferManager.bufferSendIn
-      
-      # ComDriver <-> ComStub (Uplink)
-      comDriver.$recv                     -> ComCcsds.comStub.drvReceiveIn
+
+      # Uplink
+      comDriver.$recv                      -> ComCcsds.comStub.drvReceiveIn
       ComCcsds.comStub.drvReceiveReturnOut -> comDriver.recvReturnIn
-      
-      # ComStub <-> ComDriver (Downlink)
-      ComCcsds.comStub.drvSendOut      -> comDriver.$send
-      comDriver.ready         -> ComCcsds.comStub.drvConnected
+
+      # Downlink
+      ComCcsds.comStub.drvSendOut -> comDriver.$send
+      comDriver.ready             -> ComCcsds.comStub.drvConnected
+    }
+
+    connections CommunicationsRoarFM {
+      # Secondary com stack: RoarFM UART driver <-> ComCcsdsRoarFM.comStub
+      # (UART stands in for the future Roar FM radio during bring-up)
+      roarfmDriver.allocate   -> ComCcsdsRoarFM.commsBufferManager.bufferGetCallee
+      roarfmDriver.deallocate -> ComCcsdsRoarFM.commsBufferManager.bufferSendIn
+
+      # Uplink
+      roarfmDriver.$recv                         -> ComCcsdsRoarFM.comStub.drvReceiveIn
+      ComCcsdsRoarFM.comStub.drvReceiveReturnOut -> roarfmDriver.recvReturnIn
+
+      # Downlink
+      ComCcsdsRoarFM.comStub.drvSendOut -> roarfmDriver.$send
+      roarfmDriver.ready                -> ComCcsdsRoarFM.comStub.drvConnected
     }
 
     connections FileHandling_DataProducts {
@@ -112,6 +142,8 @@ module FlatSat {
       rateGroup1.RateGroupMemberOut[4] -> ComCcsds.aggregator.timeout
       rateGroup1.RateGroupMemberOut[5] -> watchdog.run
       rateGroup1.RateGroupMemberOut[6] -> modeManager.schedIn
+      rateGroup1.RateGroupMemberOut[7] -> ComCcsdsRoarFM.comQueue.run
+      rateGroup1.RateGroupMemberOut[8] -> ComCcsdsRoarFM.aggregator.timeout
 
       # Rate group 2
       rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> rateGroup2.CycleIn
@@ -124,6 +156,7 @@ module FlatSat {
       rateGroup3.RateGroupMemberOut[2] -> DataProducts.dpBufferManager.schedIn
       rateGroup3.RateGroupMemberOut[3] -> DataProducts.dpWriter.schedIn
       rateGroup3.RateGroupMemberOut[4] -> DataProducts.dpMgr.schedIn
+      rateGroup3.RateGroupMemberOut[5] -> ComCcsdsRoarFM.commsBufferManager.schedIn
     }
 
     connections CdhCore_cmdSeq {

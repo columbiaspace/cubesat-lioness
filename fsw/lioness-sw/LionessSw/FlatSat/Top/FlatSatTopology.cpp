@@ -4,12 +4,14 @@
 //
 // ======================================================================
 // Provides access to autocoded functions
-#include <FlatSat/Top/FlatSatTopologyAc.hpp>
+#include <LionessSw/FlatSat/Top/FlatSatTopologyAc.hpp>
 // Note: Uncomment when using Svc:TlmPacketizer
-//#include <FlatSat/Top/FlatSatPacketsAc.hpp>
+//#include <LionessSw/FlatSat/Top/FlatSatPacketsAc.hpp>
 
 // Necessary project-specified types
 #include <Fw/Types/MallocAllocator.hpp>
+
+#include <cstdio>
 
 // Public functions for use in main program are namespaced with deployment module FlatSat
 // This is also the namespace where the topology components are instantiated by FPP.
@@ -29,7 +31,31 @@ U32 rateGroup3Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 
 enum TopologyConstants {
     COMM_PRIORITY = 34,
+    // Receive-buffer allocation size for the UART drivers
+    UART_ALLOCATION_SIZE = 1024,
 };
+
+// Map a numeric baud rate coming in from the command line onto the
+// LinuxUartDriver::UartBaudRate enum. The set of values handled here matches
+// the enum declared in Drv/LinuxUartDriver/LinuxUartDriver.hpp.
+static Drv::LinuxUartDriver::UartBaudRate mapBaudRate(U32 rate) {
+    switch (rate) {
+        case 9600:    return Drv::LinuxUartDriver::BAUD_9600;
+        case 19200:   return Drv::LinuxUartDriver::BAUD_19200;
+        case 38400:   return Drv::LinuxUartDriver::BAUD_38400;
+        case 57600:   return Drv::LinuxUartDriver::BAUD_57600;
+        case 115200:  return Drv::LinuxUartDriver::BAUD_115K;
+        case 230400:  return Drv::LinuxUartDriver::BAUD_230K;
+#ifdef TGT_OS_TYPE_LINUX
+        case 460800:  return Drv::LinuxUartDriver::BAUD_460K;
+        case 921600:  return Drv::LinuxUartDriver::BAUD_921K;
+        case 1000000: return Drv::LinuxUartDriver::BAUD_1000K;
+#endif
+        default:
+            (void)printf("Unsupported baud %u, falling back to 115200\n", static_cast<unsigned>(rate));
+            return Drv::LinuxUartDriver::BAUD_115K;
+    }
+}
 
 /**
  * \brief configure/setup components in project-specific way
@@ -62,20 +88,42 @@ void setupTopology(const TopologyState& state) {
     regCommands();
     // Autocoded configuration. Function provided by autocoder.
     configComponents(state);
-    if (state.hostname != nullptr && state.port != 0) {
-        comDriver.configure(state.hostname, state.port);
-    }
     // Project-specific component configuration. Function provided above. May be inlined, if desired.
     configureTopology();
     // Autocoded parameter loading. Function provided by autocoder.
     loadParameters();
     // Autocoded task kick-off (active components). Function provided by autocoder.
     startTasks(state);
-    // Initialize socket communication if and only if there is a valid specification
-    if (state.hostname != nullptr && state.port != 0) {
-        Os::TaskString name("ReceiveTask");
-        // Uplink is configured for receive so a socket task is started
-        comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
+
+    // Open and start the two UART-backed com stacks. Each is optional so the
+    // deployment can still run (e.g. for local testing) when a given device
+    // path is not available on the host.
+    const Drv::LinuxUartDriver::UartBaudRate baud = mapBaudRate(state.baudRate);
+
+    if (state.uartDevice != nullptr) {
+        const bool opened = comDriver.open(state.uartDevice,
+                                           baud,
+                                           Drv::LinuxUartDriver::NO_FLOW,
+                                           Drv::LinuxUartDriver::PARITY_NONE,
+                                           UART_ALLOCATION_SIZE);
+        if (opened) {
+            comDriver.start(COMM_PRIORITY, Default::STACK_SIZE);
+        } else {
+            (void)printf("Failed to open primary UART device: %s\n", state.uartDevice);
+        }
+    }
+
+    if (state.roarfmUartDevice != nullptr) {
+        const bool opened = roarfmDriver.open(state.roarfmUartDevice,
+                                              baud,
+                                              Drv::LinuxUartDriver::NO_FLOW,
+                                              Drv::LinuxUartDriver::PARITY_NONE,
+                                              UART_ALLOCATION_SIZE);
+        if (opened) {
+            roarfmDriver.start(COMM_PRIORITY, Default::STACK_SIZE);
+        } else {
+            (void)printf("Failed to open RoarFM UART device: %s\n", state.roarfmUartDevice);
+        }
     }
 }
 
@@ -96,9 +144,11 @@ void teardownTopology(const TopologyState& state) {
     stopTasks(state);
     freeThreads(state);
 
-    // Other task clean-up.
-    comDriver.stop();
+    // Stop and join the UART read tasks before tearing down the rest of the topology.
+    comDriver.quitReadThread();
     (void)comDriver.join();
+    roarfmDriver.quitReadThread();
+    (void)roarfmDriver.join();
 
     // Resource deallocation
     cmdSeq.deallocateBuffer(mallocator);
