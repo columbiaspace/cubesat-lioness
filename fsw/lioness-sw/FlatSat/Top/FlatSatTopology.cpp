@@ -9,6 +9,7 @@
 //#include <FlatSat/Top/FlatSatPacketsAc.hpp>
 
 // Necessary project-specified types
+#include <Fw/Logger/Logger.hpp>
 #include <Fw/Types/MallocAllocator.hpp>
 
 // Public functions for use in main program are namespaced with deployment module FlatSat
@@ -29,7 +30,43 @@ U32 rateGroup3Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 
 enum TopologyConstants {
     COMM_PRIORITY = 34,
+    EXT_UART_PRIORITY = 33,
+    EXT_UART_BUFFER_MGR_ID = 300,     //!< Must differ from the other buffer managers' IDs
+    EXT_UART_BUFFER_SIZE = 256,       //!< Max bytes per driver read
+    EXT_UART_BUFFER_COUNT = 10,
 };
+
+// Set once the external UART read thread is running, so teardown only stops what was started
+bool extUartStarted = false;
+
+/**
+ * \brief open the external board UART if a device was given on the command line
+ */
+bool openExternalUart(const TopologyState& state) {
+    if (state.uartDevice == nullptr) {
+        return false;
+    }
+    Drv::LinuxUartDriver::UartBaudRate baud;
+    switch (state.uartBaud) {
+        case 9600:
+        case 19200:
+        case 38400:
+        case 57600:
+        case 115200:
+        case 230400:
+        case 460800:
+        case 921600:
+            // UartBaudRate enumerators are equal to their baud rate
+            baud = static_cast<Drv::LinuxUartDriver::UartBaudRate>(state.uartBaud);
+            break;
+        default:
+            Fw::Logger::log("[ERROR] Unsupported UART baud rate %" PRIu32 "\n", state.uartBaud);
+            return false;
+    }
+    // On failure the driver emits an OpenError event with the reason
+    return extUart.open(state.uartDevice, baud, Drv::LinuxUartDriver::NO_FLOW, Drv::LinuxUartDriver::PARITY_NONE,
+                        EXT_UART_BUFFER_SIZE);
+}
 
 /**
  * \brief configure/setup components in project-specific way
@@ -49,6 +86,12 @@ void configureTopology() {
 
     // Command sequencer needs to allocate memory to hold contents of command sequences
     cmdSeq.allocateBuffer(0, mallocator, 5 * 1024);
+
+    // Receive buffers for the external board UART
+    Svc::BufferManager::BufferBins extUartBins{};
+    extUartBins.bins[0].bufferSize = EXT_UART_BUFFER_SIZE;
+    extUartBins.bins[0].numBuffers = EXT_UART_BUFFER_COUNT;
+    extUartBufferManager.setup(EXT_UART_BUFFER_MGR_ID, 0, mallocator, extUartBins);
 }
 
 void setupTopology(const TopologyState& state) {
@@ -67,6 +110,7 @@ void setupTopology(const TopologyState& state) {
     }
     // Project-specific component configuration. Function provided above. May be inlined, if desired.
     configureTopology();
+    const bool extUartOpen = openExternalUart(state);
     // Autocoded parameter loading. Function provided by autocoder.
     loadParameters();
     // Autocoded task kick-off (active components). Function provided by autocoder.
@@ -76,6 +120,11 @@ void setupTopology(const TopologyState& state) {
         Os::TaskString name("ReceiveTask");
         // Uplink is configured for receive so a socket task is started
         comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
+    }
+    // Read thread for the external board UART
+    if (extUartOpen) {
+        extUart.start(EXT_UART_PRIORITY, Default::STACK_SIZE);
+        extUartStarted = true;
     }
 }
 
@@ -99,9 +148,14 @@ void teardownTopology(const TopologyState& state) {
     // Other task clean-up.
     comDriver.stop();
     (void)comDriver.join();
+    if (extUartStarted) {
+        extUart.quitReadThread();
+        (void)extUart.join();
+    }
 
     // Resource deallocation
     cmdSeq.deallocateBuffer(mallocator);
+    extUartBufferManager.cleanup();
 
     tearDownComponents(state);
 }

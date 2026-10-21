@@ -75,4 +75,10 @@ module FlatSat {
 
   instance watchdogGpio: Drv.LinuxGpioDriver  base id 0x10016000
 
+  instance extUart: Drv.LinuxUartDriver base id 0x10017000
+
+  instance extUartBufferManager: Svc.BufferManager base id 0x10018000
+
+  instance uartReceiver: Components.UartReceiver base id 0x10019000
+
 }

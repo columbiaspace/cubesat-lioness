@@ -35,6 +35,9 @@ module FlatSat {
     instance watchdog
     instance watchdogGpio
     instance modeManager
+    instance extUart
+    instance extUartBufferManager
+    instance uartReceiver
 
   # ----------------------------------------------------------------------
   # Pattern graph specifiers
@@ -112,6 +115,8 @@ module FlatSat {
       rateGroup1.RateGroupMemberOut[4] -> ComCcsds.aggregator.timeout
       rateGroup1.RateGroupMemberOut[5] -> watchdog.run
       rateGroup1.RateGroupMemberOut[6] -> modeManager.schedIn
+      rateGroup1.RateGroupMemberOut[7] -> extUart.run
+      rateGroup1.RateGroupMemberOut[8] -> uartReceiver.schedIn
 
       # Rate group 2
       rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> rateGroup2.CycleIn
@@ -124,6 +129,7 @@ module FlatSat {
       rateGroup3.RateGroupMemberOut[2] -> DataProducts.dpBufferManager.schedIn
       rateGroup3.RateGroupMemberOut[3] -> DataProducts.dpWriter.schedIn
       rateGroup3.RateGroupMemberOut[4] -> DataProducts.dpMgr.schedIn
+      rateGroup3.RateGroupMemberOut[5] -> extUartBufferManager.schedIn
     }
 
     connections CdhCore_cmdSeq {
@@ -134,6 +140,17 @@ module FlatSat {
 
     connections FlatSat {
       watchdog.gpioSet -> watchdogGpio.gpioWrite
+    }
+
+    connections ExternalUart {
+      # Driver receive buffers come from a dedicated buffer manager
+      extUart.allocate   -> extUartBufferManager.bufferGetCallee
+      extUart.deallocate -> extUartBufferManager.bufferSendIn
+
+      # Driver -> receiver, and buffers back to the driver
+      extUart.ready                          -> uartReceiver.byteStreamDriverReady
+      extUart.$recv                          -> uartReceiver.fromByteStreamDriver
+      uartReceiver.fromByteStreamDriverReturn -> extUart.recvReturnIn
     }
 
   }

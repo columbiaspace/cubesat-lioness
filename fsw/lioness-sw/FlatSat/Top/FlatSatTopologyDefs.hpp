@@ -64,6 +64,8 @@ namespace FlatSat {
 struct TopologyState {
     const char* hostname;   //!< Hostname for TCP communication
     U16 port;              //!< Port for TCP communication
+    const char* uartDevice; //!< Serial device for the external board (e.g. /dev/ttyLP1), nullptr to disable
+    U32 uartBaud;           //!< Baud rate for the external board UART
     CdhCore::SubtopologyState cdhCore;           //!< Subtopology state for CdhCore
     ComCcsds::SubtopologyState comCcsds;         //!< Subtopology state for ComCcsds 
     DataProducts::SubtopologyState dataProducts; //!< Subtopology state for DataProducts

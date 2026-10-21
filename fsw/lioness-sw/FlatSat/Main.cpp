@@ -22,7 +22,10 @@
  * @param app: name of application
  */
 void print_usage(const char* app) {
-    (void)printf("Usage: ./%s [options]\n-a\thostname/IP address\n-p\tport_number\n", app);
+    (void)printf(
+        "Usage: ./%s [options]\n-a\thostname/IP address\n-p\tport_number\n"
+        "-u\texternal board UART device (e.g. /dev/ttyLP1)\n-b\tUART baud rate (default 115200)\n",
+        app);
 }
 
 /**
@@ -51,11 +54,13 @@ int main(int argc, char* argv[]) {
     I32 option = 0;
     CHAR* hostname = nullptr;
     U16 port_number = 0;
+    CHAR* uart_device = nullptr;
+    U32 uart_baud = 115200;
 
     Os::init();
 
     // Loop while reading the getopt supplied options
-    while ((option = getopt(argc, argv, "hp:a:")) != -1) {
+    while ((option = getopt(argc, argv, "hp:a:u:b:")) != -1) {
         switch (option) {
             // Handle the -a argument for address/hostname
             case 'a':
@@ -64,6 +69,14 @@ int main(int argc, char* argv[]) {
             // Handle the -p port number argument
             case 'p':
                 port_number = static_cast<U16>(atoi(optarg));
+                break;
+            // Handle the -u external board UART device argument
+            case 'u':
+                uart_device = optarg;
+                break;
+            // Handle the -b UART baud rate argument
+            case 'b':
+                uart_baud = static_cast<U32>(strtoul(optarg, nullptr, 10));
                 break;
             // Cascade intended: help output
             case 'h':
@@ -79,6 +92,8 @@ int main(int argc, char* argv[]) {
     FlatSat::TopologyState inputs;
     inputs.hostname = hostname;
     inputs.port = port_number;
+    inputs.uartDevice = uart_device;
+    inputs.uartBaud = uart_baud;
 
     // Setup program shutdown via Ctrl-C
     signal(SIGINT, signalHandler);
