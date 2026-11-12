@@ -1,0 +1,57 @@
+name: FSW IMX.8X Compile Check
+
+on:
+  pull_request:
+    paths:
+      - "fsw/**"
+      - ".github/workflows/fsw-imx8x-compile.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "fsw/**"
+      - ".github/workflows/fsw-imx8x-compile.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fsw-imx8x-compile:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Initialize F Prime submodule
+        run: |
+          git submodule update --init --depth 1 fsw/lioness-sw/lib/fprime
+          git -C fsw/lioness-sw/lib/fprime submodule update --init --recursive
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build FSW Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: fsw/lioness-sw
+          file: fsw/lioness-sw/.devcontainer/Dockerfile
+          load: true
+          tags: cubesat-dev:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Compile IMX.8X inside Docker
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}/fsw/lioness-sw:/workspace" \
+            -w /workspace \
+            cubesat-dev:ci \
+            bash -c "
+              set -e
+              fprime-util generate imx8x
+              fprime-util build imx8x --jobs \$(nproc)
+            "
