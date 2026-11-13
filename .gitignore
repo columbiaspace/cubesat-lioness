@@ -40,3 +40,6 @@ build/
 
 # Logs
 *.log
+*.logs
+logs/
+**/logs/
