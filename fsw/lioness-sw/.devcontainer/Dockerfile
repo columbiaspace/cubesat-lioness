@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     cmake \
     ninja-build \
     make \
+    libpng-dev \
     # Python for F Prime tools
     python3 \
     python3-pip \
